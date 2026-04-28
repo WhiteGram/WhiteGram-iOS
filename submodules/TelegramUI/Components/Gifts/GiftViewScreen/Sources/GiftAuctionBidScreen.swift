@@ -2772,7 +2772,7 @@ private final class GiftAuctionBidScreenComponent: Component {
             if let auctionState = self.giftAuctionState?.auctionState, case let .ongoing(_, _, _, _, _, _, _, _, currentRound, totalRounds, _, _) = auctionState {
                 subtitleString = environment.strings.Gift_AuctionBid_RoundSubtitle(
                     presentationStringsFormattedNumber(currentRound, environment.dateTimeFormat.groupingSeparator),
-                    presentationStringsFormattedNumber(totalRounds, environment.dateTimeFormat.groupingSeparator),
+                    presentationStringsFormattedNumber(totalRounds, environment.dateTimeFormat.groupingSeparator)
                 ).string
             }
             

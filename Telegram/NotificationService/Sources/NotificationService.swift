@@ -1769,7 +1769,7 @@ private final class NotificationServiceHandler {
                                             |> timeout(10.0, queue: queue, alternate: .single(nil)),
                                             wasDisplayed,
                                             resolvedEmojiFiles
-                                            |> timeout(10.0, queue: queue, alternate: .single([:])),
+                                            |> timeout(10.0, queue: queue, alternate: .single([:]))
                                         )
                                         |> deliverOn(queue)).start(next: { mediaData, notificationSoundData, wasDisplayed, resolvedEmojiFiles in
                                             guard let strongSelf = self, let stateManager = strongSelf.stateManager else {

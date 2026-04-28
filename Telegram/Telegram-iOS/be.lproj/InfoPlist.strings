@@ -1,4 +1,5 @@
 /* Localized versions of Info.plist keys */
+"CFBundleDisplayName" = "WhiteGram";
 
 "NSContactsUsageDescription" = "Telegram будзе запампоўваць вашы кантакты на свае моцна абароненыя і зашыфраваныя воблачныя серверы, каб вы маглі кантактаваць са сваімі сябрамі з любой вашай прылады.";
 "NSLocationWhenInUseUsageDescription" = "Калі вы адпраўляе месцазнаходжанне сваім сябрам, Telegram патрэбны доступ да сэрвісаў геалакацыі, каб размясціць вас на карце.";

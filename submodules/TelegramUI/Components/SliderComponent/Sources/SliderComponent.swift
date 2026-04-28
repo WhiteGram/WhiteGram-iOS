@@ -177,7 +177,9 @@ public final class SliderComponent: Component {
                     case let .discrete(discrete):
                         sliderView.minimumValue = 0.0
                         sliderView.maximumValue = Float(discrete.valueCount - 1)
+                        #if compiler(>=6.2)
                         sliderView.trackConfiguration = .init(numberOfTicks: discrete.valueCount)
+                        #endif
                     }
                 }
                 switch component.content {

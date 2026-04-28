@@ -3102,7 +3102,7 @@ public class ChatSendStarsScreen: ViewControllerComponentContainer {
         return combineLatest(
             context.engine.data.get(
                 TelegramEngine.EngineData.Item.Peer.Peer(id: peerId),
-                TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId),
+                TelegramEngine.EngineData.Item.Peer.Peer(id: context.account.peerId)
             ),
             balance
         )

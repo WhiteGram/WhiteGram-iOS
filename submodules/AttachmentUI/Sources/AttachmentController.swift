@@ -755,10 +755,13 @@ public class AttachmentController: ViewController, MinimizableController {
                         return
                     }
                     
-                    guard let caption = await mediaPickerContext.caption.get() else {
+                    guard let captionText = await (mediaPickerContext.caption
+                    |> map { caption -> String? in
+                        return caption?.string
+                    }).get() else {
                         return
                     }
-                    if caption.length == 0 {
+                    if captionText.isEmpty {
                         return
                     }
                     
@@ -783,7 +786,7 @@ public class AttachmentController: ViewController, MinimizableController {
                             },
                             sendContextActions: nil
                         ),
-                        inputText: TextWithEntities(text: caption.string, entities: []),
+                        inputText: TextWithEntities(text: captionText, entities: []),
                         copyResult: nil,
                         translateChat: nil
                     )

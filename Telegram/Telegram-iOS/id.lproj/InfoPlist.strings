@@ -1,4 +1,5 @@
 /* Localized versions of Info.plist keys */
+"CFBundleDisplayName" = "WhiteGram";
 
 "NSContactsUsageDescription" = "Telegram akan terus mengunggah kontak Anda ke penyimpanan awan yang dienkripsi penuh, sehingga Anda dapat terhubung dengan teman Anda di semua perangkat Anda.";
 "NSLocationWhenInUseUsageDescription" = "Ketika Anda mengirim lokasi untuk teman, Telegram membutuhkan akses untuk berbagi peta.";

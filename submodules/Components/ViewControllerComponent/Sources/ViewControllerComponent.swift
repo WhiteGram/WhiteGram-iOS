@@ -267,7 +267,7 @@ open class ViewControllerComponentContainer: ViewController {
         presentationMode: PresentationMode = .default,
         theme: Theme = .default,
         updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)? = nil,
-        baseNavigationColors: BaseNavigationColors = .plain,
+        baseNavigationColors: BaseNavigationColors = .plain
     ) where C.EnvironmentType == ViewControllerComponentContainer.Environment {
         self.component = AnyComponent(component)
         self.theme = theme

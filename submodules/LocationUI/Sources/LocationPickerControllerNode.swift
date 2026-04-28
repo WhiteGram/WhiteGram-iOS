@@ -1585,7 +1585,7 @@ final class LocationPickerControllerNode: ViewControllerTracingNode, CLLocationM
                     style: .glass,
                     color: self.presentationData.theme.list.itemCheckColors.fillColor,
                     foreground: self.presentationData.theme.list.itemCheckColors.foregroundColor,
-                    pressedColor: self.presentationData.theme.list.itemCheckColors.fillColor.withMultipliedAlpha(0.9),
+                    pressedColor: self.presentationData.theme.list.itemCheckColors.fillColor.withMultipliedAlpha(0.9)
                 )
                 var buttonContents: [AnyComponentWithIdentity<Empty>] = [
                     AnyComponentWithIdentity(

@@ -1996,7 +1996,7 @@ private final class StickerPackContainer: ASDisplayNode {
                 }
             )),
             environment: {},
-            containerSize: CGSize(width: 44.0, height: 44.0),
+            containerSize: CGSize(width: 44.0, height: 44.0)
         )
         let cancelButtonFrame = CGRect(origin: CGPoint(x: 16.0, y: 16.0), size: cancelButtonSize)
         if let cancelButtonView = self.cancelButton.view {
@@ -2033,7 +2033,7 @@ private final class StickerPackContainer: ASDisplayNode {
                 }
             )),
             environment: {},
-            containerSize: CGSize(width: 44.0, height: 44.0),
+            containerSize: CGSize(width: 44.0, height: 44.0)
         )
         let moreButtonFrame = CGRect(origin: CGPoint(x: layout.size.width - 16.0 - moreButtonSize.width, y: 16.0), size: moreButtonSize)
         if let moreButtonView = self.moreButton.view {

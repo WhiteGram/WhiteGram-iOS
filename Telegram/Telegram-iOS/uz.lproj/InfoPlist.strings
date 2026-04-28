@@ -1,4 +1,5 @@
 /* Localized versions of Info.plist keys */
+"CFBundleDisplayName" = "WhiteGram";
 
 "NSContactsUsageDescription" = "Telegram barcha qurilmalaringizdan doʻstlaringiz bilan bogʻlana olishingiz uchun muntazam ravishda kontaktlaringizni kuchli shifrlanadigan bulut serverlariga yuklaydi.";
 "NSLocationWhenInUseUsageDescription" = "Joylashuvingizni doʻstlaringizga yuborganingizda Telegram ularga xaritani koʻrsatishi uchun ruxsat kerak boʻladi.";

@@ -126,7 +126,7 @@ public final class ResizableSheetComponent<ChildEnvironmentType: Sendable & Equa
         backgroundColor: BackgroundColor,
         isFullscreen: Bool = false,
         externalState: ExternalState? = nil,
-        animateOut: ActionSlot<Action<()>>,
+        animateOut: ActionSlot<Action<()>>
     ) {
         self.content = content
         self.titleItem = titleItem

@@ -1469,6 +1469,7 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
     
     func update(theme: PresentationTheme) {
         self.theme = theme
+        #if compiler(>=6.2)
         if #available(iOS 26.0, *) {
             let glassEffectValue: UIGlassEffect
             if theme.overallDarkAppearance {
@@ -1479,16 +1480,23 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
                 //glassEffectValue.tintColor = UIColor(white: 1.0, alpha: 0.1)
             }
             self.glassView.effect = glassEffectValue
+        } else {
+            self.glassView.effect = UIBlurEffect(style: theme.overallDarkAppearance ? .dark : .light)
         }
+        #else
+        self.glassView.effect = UIBlurEffect(style: theme.overallDarkAppearance ? .dark : .light)
+        #endif
     }
     
     func updateSize(size: CGSize, cornerRadius: CGFloat, transition: ComponentTransition) {
         transition.animateView {
             self.glassView.bounds.size = size
             self.glassView.center = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+            #if compiler(>=6.2)
             if #available(iOS 26.0, *) {
                 self.glassView.cornerConfiguration = .corners(radius: UICornerRadius(floatLiteral: cornerRadius))
             }
+            #endif
         }
     }
     
@@ -1582,6 +1590,7 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
     }
     
     func updateCornerRadius(duration: Double, keyframes: [CGFloat]) {
+        #if compiler(>=6.2)
         guard #available(iOS 26.0, *) else {
             return
         }
@@ -1620,6 +1629,7 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
             },
             completion: nil
         )
+        #endif
     }
     
     func setTransitionFraction(value: CGFloat, duration: Double) {

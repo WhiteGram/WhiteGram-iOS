@@ -6391,7 +6391,7 @@ public final class PeerInfoScreenImpl: ViewController, PeerInfoScreen, KeyShortc
         switchToGiftsTarget: PeerInfoSwitchToGiftsTarget? = nil,
         switchToGroupsInCommon: Bool = false,
         switchToStoryFolder: Int64? = nil,
-        switchToMediaTarget: PeerInfoSwitchToMediaTarget? = nil,
+        switchToMediaTarget: PeerInfoSwitchToMediaTarget? = nil
     ) {
         self.context = context
         self.updatedPresentationData = updatedPresentationData

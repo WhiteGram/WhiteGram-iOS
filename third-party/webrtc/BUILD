@@ -2767,6 +2767,7 @@ arm64_specific_sources = ["webrtc/" + path for path in [
 arch_specific_sources = select({
     "@build_bazel_rules_apple//apple:ios_arm64": common_arm_specific_sources + arm64_specific_sources,
     "//build-system:ios_sim_arm64": common_arm_specific_sources + arm64_specific_sources,
+    "//conditions:default": common_arm_specific_sources + arm64_specific_sources,
 })
 
 common_flags = [
@@ -2807,6 +2808,7 @@ arm64_specific_flags = [
 arch_specific_cflags = select({
     "@build_bazel_rules_apple//apple:ios_arm64": common_flags + arm64_specific_flags,
     "//build-system:ios_sim_arm64": common_flags + arm64_specific_flags,
+    "//conditions:default": common_flags + arm64_specific_flags,
 })
 
 dcsctp_sources = [ "webrtc/net/dcsctp/" + path for path in [

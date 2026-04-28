@@ -1,4 +1,5 @@
 /* Localized versions of Info.plist keys */
+"CFBundleDisplayName" = "WhiteGram";
 
 "NSContactsUsageDescription" = "Telegram synchroniseert je contacten continu naar onze zwaar versleutelde Cloud-servers, zodat je contact kunt opnemen met je vrienden vanaf al je apparaten.";
 "NSLocationWhenInUseUsageDescription" = "Als je je locatie met vrienden wilt delen heeft Telegram toegang nodig om ze een kaart te kunnen tonen.";

@@ -1087,7 +1087,7 @@ public func storyAudioPickerController(
     context: AccountContext,
     selectFromFiles: @escaping () -> Void,
     dismissed: @escaping () -> Void,
-    completion: @escaping (AnyMediaReference) -> Void,
+    completion: @escaping (AnyMediaReference) -> Void
 ) -> ViewController {
     var dismissImpl: (() -> Void)?
     let presentationData = context.sharedContext.currentPresentationData.with({ $0 }).withUpdated(theme: defaultDarkColorPresentationTheme)

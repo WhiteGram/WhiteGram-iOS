@@ -1,4 +1,5 @@
 /* Localized versions of Info.plist keys */
+"CFBundleDisplayName" = "WhiteGram";
 
 "NSContactsUsageDescription" = "Telegram atualizará continuamente os seus contatos em servidores na nuvem fortemente criptografados para que você se conecte com seus amigos através de todos os seus dispositivos.";
 "NSLocationWhenInUseUsageDescription" = "Para enviar sua localização para seus amigos o Telegram precisa de permissão para mostrá-los o mapa.";

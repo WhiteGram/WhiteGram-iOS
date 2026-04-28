@@ -612,7 +612,7 @@ plist_fragment(
     template =
     """
     <key>CFBundleDisplayName</key>
-    <string>Telegram</string>
+    <string>WhiteGram</string>
     """
 )
 
@@ -1551,11 +1551,11 @@ plist_fragment(
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Telegram</string>
+    <string>WhiteGram</string>
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}</string>
     <key>CFBundleName</key>
-    <string>Telegram</string>
+    <string>WhiteGram</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -1744,7 +1744,7 @@ ios_application(
         ":RequiredDeviceCapabilitiesPlist",
         ":UrlTypesInfoPlist",
     ],
-    app_icons = [ ":{}_icon".format(name) for name in composer_icon_folders ],
+    app_icons = [":DefaultAppIcon"],
     alternate_icons = [
         ":{}".format(name) for name in alternate_icon_folders
     ],
@@ -1786,8 +1786,7 @@ xcodeproj(
     project_name = "Telegram",
     tags = ["manual"],
     top_level_targets = [
-        top_level_target(":Telegram", target_environments = ["device", "simulator"]),
-        ":iOSAppUITestSuite",
+        top_level_target(":Telegram", target_environments = ["device"]),
     ],
     xcode_configurations = {
         "Debug": {

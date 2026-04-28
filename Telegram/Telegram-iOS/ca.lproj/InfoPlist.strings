@@ -1,4 +1,5 @@
 /* Localized versions of Info.plist keys */
+"CFBundleDisplayName" = "WhiteGram";
 
 "NSContactsUsageDescription" = "Telegram pujarà automàticament els vostres contactes als seus servidors xifrats, perquè pugueu connectar-vos amb els amics des de qualsevol dispositiu.";
 "NSLocationWhenInUseUsageDescription" = "Si envieu la vostra ubicació als amics, Telegram requereix accés per a mostra-los un mapa.";

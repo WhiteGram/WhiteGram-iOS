@@ -1,4 +1,5 @@
 /* Localized versions of Info.plist keys */
+"CFBundleDisplayName" = "WhiteGram";
 
 "NSContactsUsageDescription" = "تلگرام به طور مداوم مخاطبین شما را به سرورهای اَبری و رمزگذاری شده خود آپلود می‌کند تا شما بتوانید در تمامی دستگاه‌های خود با دوستانتان ارتباط برقرار کنید.";
 "NSLocationWhenInUseUsageDescription" = "هنگامی که شما موقعیت مکانی خود را برای دوستانتان ارسال می‌کنید، تلگرام جهت نشان دادن نقشه به آن‌ها نیازمند دسترسی است.";

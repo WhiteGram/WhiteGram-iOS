@@ -413,7 +413,7 @@ final class CreateBotContentComponent: Component {
                             emptyLineHandling: .notAllowed,
                             updated: { _ in },
                             textUpdateTransition: .immediate,
-                            tag: self.usernameInputTag,
+                            tag: self.usernameInputTag
                         )))
                     ]
                 )),

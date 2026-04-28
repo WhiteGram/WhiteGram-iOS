@@ -805,7 +805,7 @@ private final class GiftUpgradeVariantsScreenComponent: Component {
                     }
                 )),
                 environment: {},
-                containerSize: CGSize(width: fillingSize, height: 300.0),
+                containerSize: CGSize(width: fillingSize, height: 300.0)
             )
             let headerFrame = CGRect(origin: CGPoint(x: floor((availableSize.width - headerSize.width) * 0.5), y: 0.0), size: headerSize)
             if let headerView = self.header.view {

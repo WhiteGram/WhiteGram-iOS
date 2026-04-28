@@ -1,4 +1,5 @@
 /* Localized versions of Info.plist keys */
+"CFBundleDisplayName" = "WhiteGram";
 
 "NSContactsUsageDescription" = "Telegram akan sentiasa muat naik kenalan anda ke pelayan awan yang berenkripsi tinggi agar anda boleh berhubung dengan rakan anda di semua peranti anda.";
 "NSLocationWhenInUseUsageDescription" = "Bila anda hantar lokasi anda kepada rakan anda, Telegram perlukan akses untuk tunjuk peta.";

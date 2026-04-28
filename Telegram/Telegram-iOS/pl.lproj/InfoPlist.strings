@@ -1,4 +1,5 @@
 /* Localized versions of Info.plist keys */
+"CFBundleDisplayName" = "WhiteGram";
 
 "NSContactsUsageDescription" = "Telegram będzie nieprzerwanie przesyłać kontakty do silnie zaszyfrowanych serwerów w chmurze, aby umożliwić ci połączenie się ze znajomymi na wszystkich urządzeniach.";
 "NSLocationWhenInUseUsageDescription" = "Gdy wysyłasz swoją lokalizację znajomym, Telegram potrzebuje dostępu, aby pokazać im mapę.";

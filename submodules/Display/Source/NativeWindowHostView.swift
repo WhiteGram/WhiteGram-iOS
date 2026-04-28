@@ -210,10 +210,12 @@ private final class WindowRootViewController: UIViewController, UIWindowSceneDel
         }
     }
     
+    #if compiler(>=6.2)
     @available(iOS 26.0, *)
     func preferredWindowingControlStyle(for windowScene: UIWindowScene) -> UIWindowScene.WindowingControlStyle {
         return .minimal
     }
+    #endif
     
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge {
         return self.gestureEdges
