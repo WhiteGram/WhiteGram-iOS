@@ -1776,7 +1776,11 @@ final class ContextControllerNode: ViewControllerTracingNode, ASScrollViewDelega
         
         let mappedPoint = self.view.convert(point, to: self.scrollNode.view)
         var maybePassthrough: ContextControllerImpl.HandledTouchEvent?
-        if let maybeContentNode = self.contentContainerNode.contentNode {
+        if self.contentContainerNode.contentNode == nil, case .location = self.legacySource {
+            if let controller = self.getController() as? ContextControllerImpl, let passthroughTouchEvent = controller.passthroughTouchEvent {
+                maybePassthrough = passthroughTouchEvent(self.view, point)
+            }
+        } else if let maybeContentNode = self.contentContainerNode.contentNode {
             switch maybeContentNode {
             case .reference:
                 if let controller = self.getController() as? ContextControllerImpl, let passthroughTouchEvent = controller.passthroughTouchEvent {

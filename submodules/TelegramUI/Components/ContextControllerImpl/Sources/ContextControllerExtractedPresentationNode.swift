@@ -321,6 +321,9 @@ final class ContextControllerExtractedPresentationNode: ASDisplayNode, ContextCo
         
         self.scrollNode = ASDisplayNode()
         self.scrollNode.view.addGestureRecognizer(self.scroller.panGestureRecognizer)
+        if case let .location(source) = source, source.keepInPlace {
+            self.scroller.panGestureRecognizer.isEnabled = false
+        }
         
         self.contentRectDebugNode = ASDisplayNode()
         self.contentRectDebugNode.isUserInteractionEnabled = false
@@ -405,6 +408,23 @@ final class ContextControllerExtractedPresentationNode: ASDisplayNode, ContextCo
                 let contentPoint = self.view.convert(point, to: contentNode.view)
                 let _ = contentPoint
                 //TODO:
+            }
+
+            if case let .location(source) = self.source, source.keepInPlace, !self.actionsContainerNode.frame.contains(self.view.convert(point, to: self.scrollNode.view)) {
+                if let controller = self.getController() as? ContextControllerImpl, let passthroughTouchEvent = controller.passthroughTouchEvent {
+                    switch passthroughTouchEvent(self.view, point) {
+                    case .ignore:
+                        break
+                    case let .dismiss(consume, result):
+                        self.requestDismiss(.default)
+                        if let result {
+                            return result
+                        }
+                        if !consume {
+                            return nil
+                        }
+                    }
+                }
             }
             
             if let result = self.scrollNode.hitTest(self.view.convert(point, to: self.scrollNode.view), with: event) {
@@ -1842,5 +1862,3 @@ final class ContextControllerExtractedPresentationNode: ASDisplayNode, ContextCo
         }
     }
 }
-
-

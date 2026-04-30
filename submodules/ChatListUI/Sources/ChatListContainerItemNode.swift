@@ -57,6 +57,7 @@ final class ChatListContainerItemNode: ASDisplayNode {
     private var canReportPeer: Bool = false
     
     private(set) var validLayout: (size: CGSize, insets: UIEdgeInsets, visualNavigationHeight: CGFloat, originalNavigationHeight: CGFloat, inlineNavigationLocation: ChatListControllerLocation?, inlineNavigationTransitionFraction: CGFloat, storiesInset: CGFloat)?
+    var bottomEdgeEffectMaxHeight: CGFloat?
     private var scrollingOffset: (navigationHeight: CGFloat, offset: CGFloat)?
     
     init(context: AccountContext, controller: ChatListControllerImpl?, location: ChatListControllerLocation, filter: ChatListFilter?, chatListMode: ChatListNodeMode, previewing: Bool, isInlineMode: Bool, controlsHistoryPreload: Bool, presentationData: PresentationData, animationCache: AnimationCache, animationRenderer: MultiAnimationRenderer, becameEmpty: @escaping (ChatListFilter?) -> Void, emptyAction: @escaping (ChatListFilter?) -> Void, secondaryEmptyAction: @escaping () -> Void, openArchiveSettings: @escaping () -> Void, autoSetReady: Bool, isMainTab: Bool?) {
@@ -450,11 +451,11 @@ final class ChatListContainerItemNode: ASDisplayNode {
         
         self.layoutAdditionalPanels(transition: transition)
         
-        let edgeEffectHeight: CGFloat = insets.bottom + 8.0
+        let edgeEffectHeight: CGFloat = min(insets.bottom + 8.0, self.bottomEdgeEffectMaxHeight ?? .greatestFiniteMagnitude)
         let edgeEffectFrame = CGRect(origin: CGPoint(x: 0.0, y: size.height - edgeEffectHeight), size: CGSize(width: size.width, height: edgeEffectHeight))
         transition.updateFrame(view: self.edgeEffectView, frame: edgeEffectFrame)
         self.edgeEffectView.update(content: self.presentationData.theme.list.plainBackgroundColor, alpha: 0.6, rect: edgeEffectFrame, edge: .bottom, edgeSize: min(edgeEffectFrame.height, 40.0), transition: ComponentTransition(transition))
-        transition.updateAlpha(layer: self.edgeEffectView.layer, alpha: edgeEffectHeight > 21.0 ? 1.0 : 0.0)
+        transition.updateAlpha(layer: self.edgeEffectView.layer, alpha: edgeEffectHeight > 21.0 || self.bottomEdgeEffectMaxHeight != nil ? 1.0 : 0.0)
     }
     
     func updateScrollingOffset(navigationHeight: CGFloat, offset: CGFloat, transition: ContainedViewLayoutTransition) {

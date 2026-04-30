@@ -6,6 +6,7 @@ import Postbox
 import TelegramCore
 import SwiftSignalKit
 import TelegramPresentationData
+import TelegramUIPreferences
 import AccountContext
 import ContactListUI
 import CallListUI
@@ -84,6 +85,8 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
     private var permissionsDisposable: Disposable?
     private var presentationDataDisposable: Disposable?
     private var presentationData: PresentationData
+    private var currentShowCallsTab: Bool = true
+    private var whiteGramTabSettingsObserver: NSObjectProtocol?
     
     private var detailsPlaceholderNode: DetailsChatPlaceholderNode?
     
@@ -114,13 +117,17 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
                 let previousTheme = strongSelf.presentationData.theme
                 strongSelf.presentationData = presentationData
                 if previousTheme !== presentationData.theme {
-                    (strongSelf.rootTabController as? TabBarControllerImpl)?.updateTheme(theme: presentationData.theme)
+                    (strongSelf.rootTabController as? TabBarControllerImpl)?.updatePresentationData(presentationData)
                     strongSelf.rootTabController?.statusBar.statusBarStyle = presentationData.theme.rootController.statusBarStyle.style
                 }
             }
         })
         
         if context.sharedContext.applicationBindings.isMainApp {
+            self.whiteGramTabSettingsObserver = NotificationCenter.default.addObserver(forName: WhiteGramTabSettings.updatedNotification, object: nil, queue: .main, using: { [weak self] _ in
+                self?.applyWhiteGramTabSettings(transition: .animated(duration: 0.35, curve: .spring))
+            })
+
             self.applicationInFocusDisposable = (context.sharedContext.applicationBindings.applicationIsActive
             |> distinctUntilChanged
             |> deliverOn(Queue.mainQueue())).startStrict(next: { value in
@@ -147,6 +154,9 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         self.presentationDataDisposable?.dispose()
         self.applicationInFocusDisposable?.dispose()
         self.storyUploadEventsDisposable?.dispose()
+        if let whiteGramTabSettingsObserver = self.whiteGramTabSettingsObserver {
+            NotificationCenter.default.removeObserver(whiteGramTabSettingsObserver)
+        }
     }
     
     public func getContactsController() -> ViewController? {
@@ -200,7 +210,10 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
     }
     
     public func addRootControllers(showCallsTab: Bool) {
-        let tabBarController = TabBarControllerImpl(theme: self.presentationData.theme, strings: self.presentationData.strings)
+        let tabBarController = TabBarControllerImpl(presentationData: self.presentationData)
+        self.currentShowCallsTab = showCallsTab
+        let whiteGramTabSettings = WhiteGramTabSettings.current
+        tabBarController.whiteGramTabSettings = whiteGramTabSettings
         tabBarController.navigationPresentation = .master
         let chatListController = self.context.sharedContext.makeChatListController(context: self.context, location: .chatList(groupId: .root), controlsHistoryPreload: true, hideNetworkActivityStatus: false, previewing: false, enableDebugActions: !GlobalExperimentalSettings.isAppStoreBuild)
         if let sharedContext = self.context.sharedContext as? SharedAccountContextImpl {
@@ -214,9 +227,11 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         contactsController.switchToChatsController = {  [weak self] in
             self?.openChatsController(activateSearch: false)
         }
-        controllers.append(contactsController)
+        if whiteGramTabSettings.compactPanel || !whiteGramTabSettings.hideContactsTab {
+            controllers.append(contactsController)
+        }
         
-        if showCallsTab {
+        if showCallsTab && (whiteGramTabSettings.compactPanel || !whiteGramTabSettings.hideCallsTab) {
             controllers.append(callListController)
         }
         controllers.append(chatListController)
@@ -254,9 +269,14 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         guard let rootTabController = self.rootTabController as? TabBarControllerImpl else {
             return
         }
+        self.currentShowCallsTab = showCallsTab
+        let whiteGramTabSettings = self.effectiveWhiteGramTabSettings()
+        rootTabController.whiteGramTabSettings = whiteGramTabSettings
         var controllers: [ViewController] = []
-        controllers.append(self.contactsController!)
-        if showCallsTab {
+        if whiteGramTabSettings.compactPanel || !whiteGramTabSettings.hideContactsTab {
+            controllers.append(self.contactsController!)
+        }
+        if showCallsTab && (whiteGramTabSettings.compactPanel || !whiteGramTabSettings.hideCallsTab) {
             controllers.append(self.callListController!)
         }
         controllers.append(self.chatListController!)
@@ -265,6 +285,19 @@ public final class TelegramRootController: NavigationController, TelegramRootCon
         rootTabController.setControllers(controllers, selectedIndex: nil)
     }
     
+    private func effectiveWhiteGramTabSettings() -> WhiteGramTabSettings {
+        return WhiteGramTabSettings.current
+    }
+
+    private func applyWhiteGramTabSettings(transition: ContainedViewLayoutTransition) {
+        guard let rootTabController = self.rootTabController as? TabBarControllerImpl else {
+            return
+        }
+        rootTabController.whiteGramTabSettings = self.effectiveWhiteGramTabSettings()
+        self.updateRootControllers(showCallsTab: self.currentShowCallsTab)
+        rootTabController.updateLayout(transition: transition)
+    }
+
     public func openChatsController(activateSearch: Bool, filter: ChatListSearchFilter = .chats, query: String? = nil) {
         guard let rootTabController = self.rootTabController else {
             return

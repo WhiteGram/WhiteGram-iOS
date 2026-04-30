@@ -74,6 +74,8 @@ public class UnauthorizedAccount {
     public let postbox: Postbox
     public let network: Network
     let stateManager: UnauthorizedAccountStateManager
+    private let proxySettingsDisposable = MetaDisposable()
+    private let automaticProxyBootstrapDisposable = MetaDisposable()
     
     private let updateLoginTokenPipe = ValuePipe<Void>()
     public var updateLoginTokenEvents: Signal<Void, NoError> {
@@ -194,6 +196,36 @@ public class UnauthorizedAccount {
             }
         })
         
+        self.proxySettingsDisposable.set((accountManager.sharedData(keys: [SharedDataKeys.proxySettings])
+        |> map { sharedData -> ProxyServerSettings? in
+            if let settings = sharedData.entries[SharedDataKeys.proxySettings]?.get(ProxySettings.self) {
+                return settings.effectiveActiveServer
+            } else {
+                return nil
+            }
+        }
+        |> distinctUntilChanged).start(next: { activeServer in
+            let updated = activeServer.flatMap { activeServer -> MTSocksProxySettings? in
+                return activeServer.mtProxySettings
+            }
+            network.context.updateApiEnvironment { environment in
+                let current = environment?.socksProxySettings
+                let updateNetwork: Bool
+                if let current = current, let updated = updated {
+                    updateNetwork = !current.isEqual(updated)
+                } else {
+                    updateNetwork = (current != nil) != (updated != nil)
+                }
+                if updateNetwork {
+                    network.dropConnectionStatus()
+                    return environment?.withUpdatedSocksProxySettings(updated)
+                } else {
+                    return nil
+                }
+            }
+        }))
+        self.automaticProxyBootstrapDisposable.set(managedAutomaticProxyBootstrap(accountManager: accountManager, network: network))
+
         network.context.performBatchUpdates({
             var datacenterIds: [Int] = [1, 2]
             if testingEnvironment {
@@ -211,7 +243,12 @@ public class UnauthorizedAccount {
         
         self.stateManager.reset()
     }
-    
+
+    deinit {
+        self.proxySettingsDisposable.dispose()
+        self.automaticProxyBootstrapDisposable.dispose()
+    }
+
     public func changedMasterDatacenterId(accountManager: AccountManager<TelegramAccountManagerTypes>, masterDatacenterId: Int32) -> Signal<UnauthorizedAccount, NoError> {
         if masterDatacenterId == Int32(self.network.mtProto.datacenterId) {
             return .single(self)

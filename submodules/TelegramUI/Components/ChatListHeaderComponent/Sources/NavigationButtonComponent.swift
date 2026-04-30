@@ -27,6 +27,7 @@ public final class NavigationButtonComponent: Component {
     public enum Content: Equatable {
         case text(title: String, isBold: Bool)
         case more
+        case folder
         case icon(imageName: String)
         case proxy(status: ChatTitleProxyStatus)
     }
@@ -61,6 +62,7 @@ public final class NavigationButtonComponent: Component {
         private var proxyNode: ChatTitleProxyNode?
         
         private var moreButton: MoreHeaderButton?
+        private var folderLayer: CAShapeLayer?
         
         private var component: NavigationButtonComponent?
         private var theme: PresentationTheme?
@@ -78,6 +80,7 @@ public final class NavigationButtonComponent: Component {
                     self.textView?.alpha = 0.6
                     self.proxyNode?.alpha = 0.6
                     self.iconView?.alpha = 0.6
+                    self.folderLayer?.opacity = 0.6
                 } else {
                     self.textView?.alpha = 1.0
                     self.textView?.layer.animateAlpha(from: 0.6, to: 1.0, duration: 0.2)
@@ -87,6 +90,9 @@ public final class NavigationButtonComponent: Component {
                     
                     self.iconView?.alpha = 1.0
                     self.iconView?.layer.animateAlpha(from: 0.6, to: 1.0, duration: 0.2)
+
+                    self.folderLayer?.opacity = 1.0
+                    self.folderLayer?.animateAlpha(from: 0.6, to: 1.0, duration: 0.2)
                 }
             }
         }
@@ -113,12 +119,15 @@ public final class NavigationButtonComponent: Component {
             var imageName: String?
             var proxyStatus: ChatTitleProxyStatus?
             var isMore: Bool = false
+            var isFolder: Bool = false
             
             switch component.content {
             case let .text(title, isBold):
                 textString = NSAttributedString(string: title, font: isBold ? Font.bold(17.0) : Font.medium(17.0), textColor: theme.chat.inputPanel.panelControlColor)
             case .more:
                 isMore = true
+            case .folder:
+                isFolder = true
             case let .icon(imageNameValue):
                 imageName = imageNameValue
             case let .proxy(status):
@@ -240,6 +249,54 @@ public final class NavigationButtonComponent: Component {
                 moreButton.removeFromSupernode()
             }
             
+            if isFolder {
+                let folderLayer: CAShapeLayer
+                if let current = self.folderLayer {
+                    folderLayer = current
+                } else {
+                    folderLayer = CAShapeLayer()
+                    folderLayer.fillColor = UIColor.clear.cgColor
+                    folderLayer.lineJoin = .round
+                    folderLayer.lineCap = .round
+                    self.folderLayer = folderLayer
+                    self.layer.addSublayer(folderLayer)
+                }
+                folderLayer.strokeColor = theme.chat.inputPanel.panelControlColor.cgColor
+                folderLayer.lineWidth = 1.65
+
+                size.width = 44.0
+
+                let iconSize = CGSize(width: 23.0, height: 17.0)
+                let iconFrame = CGRect(
+                    origin: CGPoint(
+                        x: floor((size.width - iconSize.width) * 0.5),
+                        y: floor((availableSize.height - iconSize.height) * 0.5)
+                    ),
+                    size: iconSize
+                )
+                let path = UIBezierPath()
+                path.move(to: CGPoint(x: iconFrame.minX + 2.0, y: iconFrame.minY + 6.0))
+                path.addQuadCurve(to: CGPoint(x: iconFrame.minX + 4.0, y: iconFrame.minY + 4.6), controlPoint: CGPoint(x: iconFrame.minX + 2.0, y: iconFrame.minY + 4.8))
+                path.addLine(to: CGPoint(x: iconFrame.minX + 8.0, y: iconFrame.minY + 4.6))
+                path.addLine(to: CGPoint(x: iconFrame.minX + 10.2, y: iconFrame.minY + 2.8))
+                path.addQuadCurve(to: CGPoint(x: iconFrame.minX + 12.0, y: iconFrame.minY + 2.2), controlPoint: CGPoint(x: iconFrame.minX + 10.8, y: iconFrame.minY + 2.2))
+                path.addLine(to: CGPoint(x: iconFrame.minX + 15.6, y: iconFrame.minY + 2.2))
+                path.addQuadCurve(to: CGPoint(x: iconFrame.minX + 17.4, y: iconFrame.minY + 2.9), controlPoint: CGPoint(x: iconFrame.minX + 16.8, y: iconFrame.minY + 2.2))
+                path.addLine(to: CGPoint(x: iconFrame.minX + 19.2, y: iconFrame.minY + 4.6))
+                path.addLine(to: CGPoint(x: iconFrame.maxX - 3.0, y: iconFrame.minY + 4.6))
+                path.addQuadCurve(to: CGPoint(x: iconFrame.maxX - 1.5, y: iconFrame.minY + 6.2), controlPoint: CGPoint(x: iconFrame.maxX - 1.5, y: iconFrame.minY + 4.8))
+                path.addLine(to: CGPoint(x: iconFrame.maxX - 1.5, y: iconFrame.maxY - 3.0))
+                path.addQuadCurve(to: CGPoint(x: iconFrame.maxX - 4.0, y: iconFrame.maxY - 0.8), controlPoint: CGPoint(x: iconFrame.maxX - 1.5, y: iconFrame.maxY - 0.8))
+                path.addLine(to: CGPoint(x: iconFrame.minX + 4.0, y: iconFrame.maxY - 0.8))
+                path.addQuadCurve(to: CGPoint(x: iconFrame.minX + 1.5, y: iconFrame.maxY - 3.0), controlPoint: CGPoint(x: iconFrame.minX + 1.5, y: iconFrame.maxY - 0.8))
+                path.addLine(to: CGPoint(x: iconFrame.minX + 1.5, y: iconFrame.minY + 6.2))
+                path.close()
+                folderLayer.path = path.cgPath
+            } else if let folderLayer = self.folderLayer {
+                self.folderLayer = nil
+                folderLayer.removeFromSuperlayer()
+            }
+
             return size
         }
     }

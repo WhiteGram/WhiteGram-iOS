@@ -51,6 +51,8 @@ extension PeerInfoScreenNode {
             self.headerNode.navigationButtonContainer.performAction?(.edit, nil, nil)
         case .proxy:
             self.controller?.push(proxySettingsController(context: self.context))
+        case .whiteGram:
+            self.controller?.push(whiteGramSettingsController(context: self.context))
         case .profile:
             self.controller?.push(PeerInfoScreenImpl(
                 context: self.context,

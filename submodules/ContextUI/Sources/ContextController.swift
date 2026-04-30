@@ -291,12 +291,17 @@ public final class ContextControllerLocationViewInfo {
 }
 
 public protocol ContextLocationContentSource: AnyObject {
+    var keepInPlace: Bool { get }
     var shouldBeDismissed: Signal<Bool, NoError> { get }
     
     func transitionInfo() -> ContextControllerLocationViewInfo?
 }
 
 public extension ContextLocationContentSource {
+    var keepInPlace: Bool {
+        return false
+    }
+
     var shouldBeDismissed: Signal<Bool, NoError> {
         return .single(false)
     }

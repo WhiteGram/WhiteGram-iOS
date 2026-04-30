@@ -153,6 +153,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
     private var processedFeaturedFilters = false
     
     private let isReorderingTabsValue = ValuePromise<Bool>(false)
+    private var whiteGramChatFolderSettingsObserver: NSObjectProtocol?
     
     private(set) var tabContainerData: ([ChatListFilterTabEntry], Bool, Int32?)?
     var hasTabs: Bool {
@@ -270,6 +271,12 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
         
         self.tabBarItemContextActionType = .always
         self.automaticallyControlPresentationContextLayout = false
+        self.whiteGramChatFolderSettingsObserver = NotificationCenter.default.addObserver(forName: WhiteGramChatFolderSettings.updatedNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self else {
+                return
+            }
+            self.requestLayout(transition: .animated(duration: 0.35, curve: .spring))
+        }
         
         self.statusBar.statusBarStyle = self.presentationData.theme.rootController.statusBarStyle.style
         
@@ -800,6 +807,9 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             disposable.dispose()
         }
         self.globalControlPanelsContextStateDisposable?.dispose()
+        if let whiteGramChatFolderSettingsObserver = self.whiteGramChatFolderSettingsObserver {
+            NotificationCenter.default.removeObserver(whiteGramChatFolderSettingsObserver)
+        }
     }
     
     private func updateNavigationMetadata() {
@@ -3970,6 +3980,10 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
             }
             
             var selectedEntryId = !strongSelf.initializedFilters ? firstItemEntryId : strongSelf.chatListDisplayNode.mainContainerNode.currentItemFilter
+            let whiteGramFolderSettings = WhiteGramChatFolderSettings.current
+            if !strongSelf.initializedFilters, whiteGramFolderSettings.openLastFolder, let lastFolderId = whiteGramFolderSettings.lastFolderId {
+                selectedEntryId = .filter(lastFolderId)
+            }
             var resetCurrentEntry = false
             if !resolvedItems.contains(where: { $0.id == selectedEntryId }) {
                 resetCurrentEntry = true
@@ -4053,6 +4067,17 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
     }
     
     func selectTab(id: ChatListFilterTabEntryId, switchToChatsIfNeeded: Bool = true) {
+        var whiteGramFolderSettings = WhiteGramChatFolderSettings.current
+        if whiteGramFolderSettings.openLastFolder {
+            switch id {
+            case .all:
+                whiteGramFolderSettings.lastFolderId = nil
+            case let .filter(id):
+                whiteGramFolderSettings.lastFolderId = id
+            }
+            whiteGramFolderSettings.save(notify: false)
+        }
+
         if self.parent == nil, switchToChatsIfNeeded {
             if let navigationController = self.context.sharedContext.mainWindow?.viewController as? NavigationController {
                 for controller in navigationController.viewControllers {
@@ -6154,6 +6179,38 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
         self.donePressed()
     }
     
+    fileprivate func openWhiteGramFolderMenu(sourceView: UIView) {
+        guard let tabContainerData = self.tabContainerData else {
+            return
+        }
+
+        var items: [ContextMenuItem] = []
+        for entry in tabContainerData.0 {
+            let title: String
+            switch entry {
+            case .all:
+                title = self.presentationData.strings.ChatList_Tabs_All
+            case let .filter(_, text, _):
+                title = text.text
+            }
+            items.append(.action(ContextMenuActionItem(text: title, icon: { _ in
+                return nil
+            }, action: { [weak self] _, f in
+                f(.dismissWithoutContent)
+                self?.selectTab(id: entry.id)
+            })))
+        }
+
+        let controller = makeContextController(
+            context: self.context,
+            presentationData: self.presentationData,
+            source: .reference(HeaderContextReferenceContentSource(controller: self, sourceView: sourceView)),
+            items: .single(ContextController.Items(content: .list(items))),
+            gesture: nil
+        )
+        self.presentInGlobalOverlay(controller)
+    }
+
     override public func tabBarItemContextAction(sourceView: ContextExtractedContentContainingView, gesture: ContextGesture) {
         let _ = (combineLatest(queue: .mainQueue(),
             self.context.engine.peers.currentChatListFilters(),
@@ -6278,6 +6335,10 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
 
     override public func tabBarActivateSearch() {
         self.activateSearchInternal(isFromTabBar: true, filter: .chats, query: nil)
+    }
+
+    override public func tabBarActivateSearchFromCompactMenu() {
+        self.activateSearchInternal(isFromTabBar: false, filter: .chats, query: nil)
     }
 
     override public func tabBarDeactivateSearch() {
@@ -6659,11 +6720,31 @@ private final class ChatListLocationContext {
     var rightButton: AnyComponentWithIdentity<NavigationButtonComponentEnvironment>?
     var proxyButton: AnyComponentWithIdentity<NavigationButtonComponentEnvironment>?
     var storyButton: AnyComponentWithIdentity<NavigationButtonComponentEnvironment>?
+    var allowFolderButton: Bool = false
+    var folderButton: AnyComponentWithIdentity<NavigationButtonComponentEnvironment>? {
+        guard self.allowFolderButton, case .chatList(.root) = self.location, let parentController = self.parentController else {
+            return nil
+        }
+        let settings = WhiteGramChatFolderSettings.current
+        let hasFolders = (parentController.tabContainerData?.0.count ?? 0) > 1
+        guard !settings.disableFolders && settings.compactPanel && hasFolders else {
+            return nil
+        }
+        return AnyComponentWithIdentity(id: "folders", component: AnyComponent(NavigationButtonComponent(
+            content: .folder,
+            pressed: { [weak parentController] sourceView in
+                parentController?.openWhiteGramFolderMenu(sourceView: sourceView)
+            }
+        )))
+    }
     
     var rightButtons: [AnyComponentWithIdentity<NavigationButtonComponentEnvironment>] {
         var result: [AnyComponentWithIdentity<NavigationButtonComponentEnvironment>] = []
         if let rightButton = self.rightButton {
             result.append(rightButton)
+        }
+        if let folderButton = self.folderButton {
+            result.append(folderButton)
         }
         if let storyButton = self.storyButton {
             result.append(storyButton)
@@ -7047,6 +7128,7 @@ private final class ChatListLocationContext {
             if case .chatList(.root) = self.location {
                 self.rightButton = nil
                 self.storyButton = nil
+                self.allowFolderButton = false
             }
             let title = !stateAndFilterId.state.selectedPeerIds.isEmpty ? presentationData.strings.ChatList_SelectedChats(Int32(stateAndFilterId.state.selectedPeerIds.count)) : defaultTitle
             
@@ -7062,6 +7144,7 @@ private final class ChatListLocationContext {
             if case .chatList(.root) = self.location {
                 self.rightButton = nil
                 self.storyButton = nil
+                self.allowFolderButton = false
             }
             self.leftButton = AnyComponentWithIdentity(id: "done", component: AnyComponent(NavigationButtonComponent(
                 content: .text(title: presentationData.strings.Common_Done, isBold: true),
@@ -7091,6 +7174,7 @@ private final class ChatListLocationContext {
             var isRoot = false
             if case .chatList(.root) = self.location {
                 isRoot = true
+                self.allowFolderButton = true
                 
                 if isReorderingTabs {
                     self.rightButton = AnyComponentWithIdentity(id: "done", component: AnyComponent(NavigationButtonComponent(
@@ -7152,6 +7236,7 @@ private final class ChatListLocationContext {
                     self.storyButton = nil
                 }
             } else {
+                self.allowFolderButton = false
                 let parentController = self.parentController
                 self.rightButton = AnyComponentWithIdentity(id: "more", component: AnyComponent(NavigationButtonComponent(
                     content: .more,
@@ -7261,6 +7346,8 @@ private final class ChatListLocationContext {
         stateAndFilterId: (state: ChatListNodeState, filterId: Int32?),
         presentationData: PresentationData
     ) {
+        self.allowFolderButton = false
+
         if stateAndFilterId.state.editing && stateAndFilterId.state.selectedThreadIds.count > 0 {
             self.chatTitleComponent = ChatTitleComponent(
                 context: self.context,

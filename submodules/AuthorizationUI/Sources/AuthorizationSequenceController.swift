@@ -24,6 +24,10 @@ import AlertUI
 import InAppPurchaseManager
 import ObjectiveC
 import AVFoundation
+import ComponentFlow
+import ChatListHeaderComponent
+import ChatListTitleView
+import GlassBackgroundComponent
 
 private var ObjCKey_Delegate: Int?
 
@@ -51,6 +55,8 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
     private var applicationStateDisposable: Disposable?
     
     private var didPlayPresentationAnimation = false
+    private let proxyButton = ComponentView<NavigationButtonComponentEnvironment>()
+    private let proxyButtonBackground = GlassContextExtractableContainer()
     
     private let _ready = Promise<Bool>()
     override public var ready: Promise<Bool> {
@@ -73,7 +79,6 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
         self.presentationData = presentationData
         self.openUrl = openUrl
         self.authorizationCompleted = authorizationCompleted
-        
         let navigationStatusBar: NavigationStatusBarStyle
         switch presentationData.theme.rootController.statusBarStyle {
         case .black:
@@ -127,6 +132,77 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
     override public func loadView() {
         super.loadView()
         self.view.backgroundColor = self.presentationData.theme.list.plainBackgroundColor
+    }
+
+    override public func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {
+        super.containerLayoutUpdated(layout, transition: transition)
+
+        let buttonSize = self.proxyButton.update(
+            transition: ComponentTransition(transition),
+            component: AnyComponent(NavigationButtonComponent(
+                content: .proxy(status: .available),
+                pressed: { [weak self] _ in
+                    self?.proxyButtonPressed()
+                }
+            )),
+            environment: {
+                NavigationButtonComponentEnvironment(theme: self.presentationData.theme)
+            },
+            containerSize: CGSize(width: 44.0, height: 44.0)
+        )
+        let sideInset = max(layout.safeInsets.right, 16.0)
+        let topInset = max(layout.statusBarHeight ?? layout.safeInsets.top, 20.0) + 8.0
+        let buttonFrame = CGRect(origin: CGPoint(x: layout.size.width - sideInset - buttonSize.width, y: topInset), size: buttonSize)
+
+        if let proxyButtonView = self.proxyButton.view {
+            if self.proxyButtonBackground.superview == nil {
+                self.view.addSubview(self.proxyButtonBackground)
+            }
+            if proxyButtonView.superview !== self.proxyButtonBackground.contentView {
+                proxyButtonView.accessibilityLabel = "Proxy"
+                self.proxyButtonBackground.contentView.addSubview(proxyButtonView)
+            }
+            transition.updateFrame(view: self.proxyButtonBackground, frame: buttonFrame)
+            transition.updateFrame(view: proxyButtonView, frame: CGRect(origin: CGPoint(), size: buttonSize))
+            self.proxyButtonBackground.update(size: buttonSize, cornerRadius: buttonSize.height * 0.5, isDark: self.presentationData.theme.overallDarkAppearance, tintColor: .init(kind: .panel), isInteractive: true, transition: ComponentTransition(transition))
+            self.updateProxyButtonVisibility()
+        }
+    }
+
+    private func shouldDisplayProxyButton() -> Bool {
+        guard let topViewController = self.topViewController else {
+            return false
+        }
+        return topViewController is AuthorizationSequenceSplashController
+        || topViewController is AuthorizationSequencePhoneEntryController
+        || topViewController is AuthorizationSequenceCodeEntryController
+        || topViewController is AuthorizationSequenceEmailEntryController
+        || topViewController is AuthorizationSequencePasswordEntryController
+        || topViewController is AuthorizationSequencePasswordRecoveryController
+        || topViewController is AuthorizationSequenceAwaitingAccountResetController
+        || topViewController is AuthorizationSequenceSignUpController
+        || topViewController is AuthorizationSequencePaymentScreen
+    }
+
+    private func updateProxyButtonVisibility() {
+        let isVisible = self.shouldDisplayProxyButton()
+        self.proxyButtonBackground.isHidden = !isVisible
+        self.proxyButtonBackground.alpha = isVisible ? 1.0 : 0.0
+        if isVisible {
+            self.view.bringSubviewToFront(self.proxyButtonBackground)
+        }
+    }
+
+    private func proxyButtonPressed() {
+        self.view.endEditing(true)
+        self.proxyButtonBackground.isHidden = true
+        self.proxyButtonBackground.alpha = 0.0
+        let proxyController = self.sharedContext.makeProxySettingsController(sharedContext: self.sharedContext, account: self.account)
+        if let topViewController = self.topViewController as? ViewController {
+            topViewController.present(proxyController, in: .window(.root), with: ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
+        } else {
+            self.present(proxyController, animated: true)
+        }
     }
     
     private func splashController() -> AuthorizationSequenceSplashController {
@@ -1362,6 +1438,7 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
     override public func setViewControllers(_ viewControllers: [UIViewController], animated: Bool) {
         let wasEmpty = self.viewControllers.isEmpty
         super.setViewControllers(viewControllers, animated: animated)
+        self.updateProxyButtonVisibility()
         if wasEmpty {
             if self.topViewController is AuthorizationSequenceSplashController {
             } else {
