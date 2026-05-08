@@ -2,6 +2,7 @@ import Foundation
 import SwiftSignalKit
 import MtProtoKit
 
+private let proxyServerStatusTimeout: Double = 6.0
 
 public enum ProxyServerStatus: Equatable {
     case checking
@@ -15,8 +16,14 @@ private final class ProxyServerItemContext {
     
     init(queue: Queue, context: MTContext, datacenterId: Int, server: ProxyServerSettings, updated: @escaping (ProxyServerStatus) -> Void) {
         self.disposable = (Signal<ProxyServerStatus, NoError> { subscriber in
+            let timeoutTimer = SwiftSignalKit.Timer(timeout: proxyServerStatusTimeout, repeat: false, completion: {
+                subscriber.putNext(.notAvailable)
+            }, queue: queue)
+            timeoutTimer.start()
+            
             let disposable = MTProxyConnectivity.pingProxy(with: context, datacenterId: datacenterId, settings: server.mtProxySettings).start(next: { next in
                 if let next = next as? MTProxyConnectivityStatus {
+                    timeoutTimer.invalidate()
                     if !next.reachable {
                         subscriber.putNext(.notAvailable)
                     } else {
@@ -26,6 +33,7 @@ private final class ProxyServerItemContext {
             })
             
             return ActionDisposable {
+                timeoutTimer.invalidate()
                 disposable?.dispose()
             }
         } |> runOn(queue)).start(next: { status in

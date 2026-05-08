@@ -17,6 +17,19 @@ private final class SwitchNodeView: UISwitch {
     }
 }
 
+private func configureSwitchAppearance(_ switchView: UISwitch, frameColor: UIColor, contentColor: UIColor, backgroundColor: UIColor?) {
+    if #available(iOS 26.0, *) {
+        switchView.backgroundColor = .clear
+        switchView.tintColor = nil
+        switchView.onTintColor = nil
+        switchView.thumbTintColor = nil
+    } else {
+        switchView.backgroundColor = backgroundColor
+        switchView.tintColor = frameColor
+        switchView.onTintColor = contentColor
+    }
+}
+
 open class SwitchNode: ASDisplayNode {
     public var valueUpdated: ((Bool) -> Void)?
     
@@ -24,7 +37,10 @@ open class SwitchNode: ASDisplayNode {
         didSet {
             if self.isNodeLoaded {
                 if oldValue != self.frameColor {
-                    (self.view as! UISwitch).tintColor = self.frameColor
+                    if #available(iOS 26.0, *) {
+                    } else {
+                        (self.view as! UISwitch).tintColor = self.frameColor
+                    }
                 }
             }
         }
@@ -40,7 +56,10 @@ open class SwitchNode: ASDisplayNode {
         didSet {
             if self.isNodeLoaded {
                 if oldValue != self.contentColor {
-                    (self.view as! UISwitch).onTintColor = self.contentColor
+                    if #available(iOS 26.0, *) {
+                    } else {
+                        (self.view as! UISwitch).onTintColor = self.contentColor
+                    }
                 }
             }
         }
@@ -64,7 +83,11 @@ open class SwitchNode: ASDisplayNode {
         super.init()
         
         self.setViewBlock({
-            return SwitchNodeView()
+            if #available(iOS 26.0, *) {
+                return UISwitch()
+            } else {
+                return SwitchNodeView()
+            }
         })
     }
     
@@ -73,9 +96,7 @@ open class SwitchNode: ASDisplayNode {
         
         self.view.isAccessibilityElement = false
         
-        (self.view as! UISwitch).backgroundColor = self.backgroundColor
-        (self.view as! UISwitch).tintColor = self.frameColor
-        (self.view as! UISwitch).onTintColor = self.contentColor
+        configureSwitchAppearance(self.view as! UISwitch, frameColor: self.frameColor, contentColor: self.contentColor, backgroundColor: self.backgroundColor)
         
         (self.view as! UISwitch).setOn(self._isOn, animated: false)
         
@@ -91,7 +112,9 @@ open class SwitchNode: ASDisplayNode {
     
     override open func calculateSizeThatFits(_ constrainedSize: CGSize) -> CGSize {
         if #available(iOS 26.0, *) {
-            return CGSize(width: 63.0, height: 28.0)
+            let switchView = UISwitch()
+            switchView.sizeToFit()
+            return switchView.bounds.size
         } else {
             return CGSize(width: 51.0, height: 31.0)
         }

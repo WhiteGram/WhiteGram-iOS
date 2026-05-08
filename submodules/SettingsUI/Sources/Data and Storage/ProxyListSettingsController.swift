@@ -11,6 +11,7 @@ import PresentationDataUtils
 import AccountContext
 import ShareController
 import UrlEscaping
+import TelegramUIPreferences
 
 private final class ProxySettingsControllerArguments {
     let toggleEnabled: (Bool) -> Void
@@ -20,9 +21,11 @@ private final class ProxySettingsControllerArguments {
     let removeServer: (ProxyServerSettings) -> Void
     let setServerWithRevealedOptions: (ProxyServerSettings?, ProxyServerSettings?) -> Void
     let toggleUseForCalls: (Bool) -> Void
+    let toggleAutoConnectOnLaunch: (Bool) -> Void
+    let toggleForceTcp: (Bool) -> Void
     let shareProxyList: () -> Void
     
-    init(toggleEnabled: @escaping (Bool) -> Void, addNewServer: @escaping () -> Void, activateServer: @escaping (ProxyServerSettings) -> Void, editServer: @escaping (ProxyServerSettings) -> Void, removeServer: @escaping (ProxyServerSettings) -> Void, setServerWithRevealedOptions: @escaping (ProxyServerSettings?, ProxyServerSettings?) -> Void, toggleUseForCalls: @escaping (Bool) -> Void, shareProxyList: @escaping () -> Void) {
+    init(toggleEnabled: @escaping (Bool) -> Void, addNewServer: @escaping () -> Void, activateServer: @escaping (ProxyServerSettings) -> Void, editServer: @escaping (ProxyServerSettings) -> Void, removeServer: @escaping (ProxyServerSettings) -> Void, setServerWithRevealedOptions: @escaping (ProxyServerSettings?, ProxyServerSettings?) -> Void, toggleUseForCalls: @escaping (Bool) -> Void, toggleAutoConnectOnLaunch: @escaping (Bool) -> Void, toggleForceTcp: @escaping (Bool) -> Void, shareProxyList: @escaping () -> Void) {
         self.toggleEnabled = toggleEnabled
         self.addNewServer = addNewServer
         self.activateServer = activateServer
@@ -30,15 +33,18 @@ private final class ProxySettingsControllerArguments {
         self.removeServer = removeServer
         self.setServerWithRevealedOptions = setServerWithRevealedOptions
         self.toggleUseForCalls = toggleUseForCalls
+        self.toggleAutoConnectOnLaunch = toggleAutoConnectOnLaunch
+        self.toggleForceTcp = toggleForceTcp
         self.shareProxyList = shareProxyList
     }
 }
 
 private enum ProxySettingsControllerSection: Int32 {
     case enabled
+    case calls
+    case best
     case servers
     case share
-    case calls
 }
 
 private enum ProxyServerAvailabilityStatus: Equatable {
@@ -53,9 +59,41 @@ private struct DisplayProxyServerStatus: Equatable {
     let textActive: Bool
 }
 
+private struct ProxySettingsCustomStrings {
+    let connectionTitle: String
+    let callsHeader: String
+    let forceTcpTitle: String
+    let forceTcpInfo: String
+    let bestProxyHeader: String
+    let autoConnectOnLaunch: String
+}
+
+private func proxySettingsCustomStrings(_ strings: PresentationStrings) -> ProxySettingsCustomStrings {
+    if strings.baseLanguageCode.lowercased().hasPrefix("ru") {
+        return ProxySettingsCustomStrings(
+            connectionTitle: "Соединение",
+            callsHeader: "Звонки",
+            forceTcpTitle: "Force TCP",
+            forceTcpInfo: "Force TCP может ухудшить качество аудиозвонков и видеозвонков, но обеспечивает более стабильную связь",
+            bestProxyHeader: "Лучший прокси",
+            autoConnectOnLaunch: "Автоподключение при заходе"
+        )
+    } else {
+        return ProxySettingsCustomStrings(
+            connectionTitle: "Connection",
+            callsHeader: "Calls",
+            forceTcpTitle: "Force TCP",
+            forceTcpInfo: "Force TCP may reduce audio and video call quality, but provides a more stable connection",
+            bestProxyHeader: "Best Proxy",
+            autoConnectOnLaunch: "Auto-connect on launch"
+        )
+    }
+}
+
 private enum ProxySettingsControllerEntryId: Equatable, Hashable {
     case index(Int)
     case server(String, Int32, ProxyServerConnection)
+    case bestServer(String, Int32, ProxyServerConnection)
 }
 
 public enum ProxySettingsEntryTag: ItemListItemTag, Equatable {
@@ -63,6 +101,8 @@ public enum ProxySettingsEntryTag: ItemListItemTag, Equatable {
     case useProxy
     case shareList
     case useForCalls
+    case autoConnectOnLaunch
+    case forceTcp
     
     public func isEqual(to other: ItemListItemTag) -> Bool {
         if let other = other as? ProxySettingsEntryTag, self == other {
@@ -75,6 +115,12 @@ public enum ProxySettingsEntryTag: ItemListItemTag, Equatable {
 
 private enum ProxySettingsControllerEntry: ItemListNodeEntry {
     case enabled(PresentationTheme, String, Bool, Bool)
+    case callsHeader(PresentationTheme, String)
+    case forceTcp(PresentationTheme, String, Bool)
+    case forceTcpInfo(PresentationTheme, String)
+    case bestHeader(PresentationTheme, String)
+    case bestServer(PresentationTheme, PresentationStrings, ProxyServerSettings, DisplayProxyServerStatus, Bool)
+    case autoConnectOnLaunch(PresentationTheme, String, Bool)
     case serversHeader(PresentationTheme, String)
     case addServer(PresentationTheme, String, Bool)
     case server(Int, PresentationTheme, PresentationStrings, ProxyServerSettings, Bool, DisplayProxyServerStatus, ProxySettingsServerItemEditing, Bool)
@@ -86,6 +132,10 @@ private enum ProxySettingsControllerEntry: ItemListNodeEntry {
         switch self {
             case .enabled:
                 return ProxySettingsControllerSection.enabled.rawValue
+            case .callsHeader, .forceTcp, .forceTcpInfo:
+                return ProxySettingsControllerSection.calls.rawValue
+            case .bestHeader, .bestServer, .autoConnectOnLaunch:
+                return ProxySettingsControllerSection.best.rawValue
             case .serversHeader, .addServer, .server:
                 return ProxySettingsControllerSection.servers.rawValue
             case .shareProxyList:
@@ -99,18 +149,30 @@ private enum ProxySettingsControllerEntry: ItemListNodeEntry {
         switch self {
             case .enabled:
                 return .index(0)
-            case .serversHeader:
+            case .callsHeader:
                 return .index(1)
-            case .addServer:
+            case .forceTcp:
                 return .index(2)
+            case .forceTcpInfo:
+                return .index(3)
+            case .bestHeader:
+                return .index(4)
+            case let .bestServer(_, _, settings, _, _):
+                return .bestServer(settings.host, settings.port, settings.connection)
+            case .autoConnectOnLaunch:
+                return .index(5)
+            case .serversHeader:
+                return .index(6)
+            case .addServer:
+                return .index(7)
             case let .server(_, _, _, settings, _, _, _, _):
                 return .server(settings.host, settings.port, settings.connection)
             case .shareProxyList:
-                return .index(3)
+                return .index(8)
             case .useForCalls:
-                return .index(4)
+                return .index(9)
             case .useForCallsInfo:
-                return .index(5)
+                return .index(10)
         }
     }
     
@@ -118,6 +180,42 @@ private enum ProxySettingsControllerEntry: ItemListNodeEntry {
         switch lhs {
             case let .enabled(lhsTheme, lhsText, lhsValue, lhsCreatesNew):
                 if case let .enabled(rhsTheme, rhsText, rhsValue, rhsCreatesNew) = rhs, lhsTheme === rhsTheme, lhsText == rhsText, lhsValue == rhsValue, lhsCreatesNew == rhsCreatesNew {
+                    return true
+                } else {
+                    return false
+                }
+            case let .callsHeader(lhsTheme, lhsText):
+                if case let .callsHeader(rhsTheme, rhsText) = rhs, lhsTheme === rhsTheme, lhsText == rhsText {
+                    return true
+                } else {
+                    return false
+                }
+            case let .forceTcp(lhsTheme, lhsText, lhsValue):
+                if case let .forceTcp(rhsTheme, rhsText, rhsValue) = rhs, lhsTheme === rhsTheme, lhsText == rhsText, lhsValue == rhsValue {
+                    return true
+                } else {
+                    return false
+                }
+            case let .forceTcpInfo(lhsTheme, lhsText):
+                if case let .forceTcpInfo(rhsTheme, rhsText) = rhs, lhsTheme === rhsTheme, lhsText == rhsText {
+                    return true
+                } else {
+                    return false
+                }
+            case let .bestHeader(lhsTheme, lhsText):
+                if case let .bestHeader(rhsTheme, rhsText) = rhs, lhsTheme === rhsTheme, lhsText == rhsText {
+                    return true
+                } else {
+                    return false
+                }
+            case let .bestServer(lhsTheme, lhsStrings, lhsSettings, lhsStatus, lhsEnabled):
+                if case let .bestServer(rhsTheme, rhsStrings, rhsSettings, rhsStatus, rhsEnabled) = rhs, lhsTheme === rhsTheme, lhsStrings === rhsStrings, lhsSettings == rhsSettings, lhsStatus == rhsStatus, lhsEnabled == rhsEnabled {
+                    return true
+                } else {
+                    return false
+                }
+            case let .autoConnectOnLaunch(lhsTheme, lhsText, lhsValue):
+                if case let .autoConnectOnLaunch(rhsTheme, rhsText, rhsValue) = rhs, lhsTheme === rhsTheme, lhsText == rhsText, lhsValue == rhsValue {
                     return true
                 } else {
                     return false
@@ -170,23 +268,65 @@ private enum ProxySettingsControllerEntry: ItemListNodeEntry {
                     default:
                         return true
                 }
+            case .callsHeader:
+                switch rhs {
+                    case .enabled, .callsHeader:
+                        return false
+                    default:
+                        return true
+                }
+            case .forceTcp:
+                switch rhs {
+                    case .enabled, .callsHeader, .forceTcp:
+                        return false
+                    default:
+                        return true
+                }
+            case .forceTcpInfo:
+                switch rhs {
+                    case .enabled, .callsHeader, .forceTcp, .forceTcpInfo:
+                        return false
+                    default:
+                        return true
+                }
+            case .bestHeader:
+                switch rhs {
+                    case .enabled, .callsHeader, .forceTcp, .forceTcpInfo, .bestHeader:
+                        return false
+                    default:
+                        return true
+                }
+            case .bestServer:
+                switch rhs {
+                    case .enabled, .callsHeader, .forceTcp, .forceTcpInfo, .bestHeader, .bestServer:
+                        return false
+                    default:
+                        return true
+                }
+            case .autoConnectOnLaunch:
+                switch rhs {
+                    case .enabled, .callsHeader, .forceTcp, .forceTcpInfo, .bestHeader, .bestServer, .autoConnectOnLaunch:
+                        return false
+                    default:
+                        return true
+                }
             case .serversHeader:
                 switch rhs {
-                    case .enabled, .serversHeader:
+                    case .enabled, .callsHeader, .forceTcp, .forceTcpInfo, .bestHeader, .bestServer, .autoConnectOnLaunch, .serversHeader:
                         return false
                     default:
                         return true
                 }
             case .addServer:
                 switch rhs {
-                    case .enabled, .serversHeader, .addServer:
+                    case .enabled, .callsHeader, .forceTcp, .forceTcpInfo, .bestHeader, .bestServer, .autoConnectOnLaunch, .serversHeader, .addServer:
                         return false
                     default:
                         return true
                 }
             case let .server(lhsIndex, _, _, _, _, _, _, _):
                 switch rhs {
-                    case .enabled, .serversHeader, .addServer:
+                    case .enabled, .callsHeader, .forceTcp, .forceTcpInfo, .bestHeader, .bestServer, .autoConnectOnLaunch, .serversHeader, .addServer:
                         return false
                     case let .server(rhsIndex, _, _, _, _, _, _, _):
                         return lhsIndex < rhsIndex
@@ -195,14 +335,14 @@ private enum ProxySettingsControllerEntry: ItemListNodeEntry {
                 }
             case .shareProxyList:
                 switch rhs {
-                    case .enabled, .serversHeader, .addServer, .server, .shareProxyList:
+                    case .enabled, .callsHeader, .forceTcp, .forceTcpInfo, .bestHeader, .bestServer, .autoConnectOnLaunch, .serversHeader, .addServer, .server, .shareProxyList:
                         return false
                     default:
                         return true
             }
             case .useForCalls:
                 switch rhs {
-                    case .enabled, .serversHeader, .addServer, .server, .shareProxyList, .useForCalls:
+                    case .enabled, .callsHeader, .forceTcp, .forceTcpInfo, .bestHeader, .bestServer, .autoConnectOnLaunch, .serversHeader, .addServer, .server, .shareProxyList, .useForCalls:
                         return false
                     default:
                         return true
@@ -223,6 +363,28 @@ private enum ProxySettingsControllerEntry: ItemListNodeEntry {
                         arguments.toggleEnabled(value)
                     }
                 }, tag: ProxySettingsEntryTag.useProxy)
+            case let .callsHeader(_, text):
+                return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
+            case let .forceTcp(_, text, value):
+                return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, enableInteractiveChanges: true, enabled: true, sectionId: self.section, style: .blocks, updated: { value in
+                    arguments.toggleForceTcp(value)
+                }, tag: ProxySettingsEntryTag.forceTcp)
+            case let .forceTcpInfo(_, text):
+                return ItemListTextItem(presentationData: presentationData, text: .plain(text), sectionId: self.section)
+            case let .bestHeader(_, text):
+                return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
+            case let .bestServer(theme, strings, settings, status, active):
+                return ProxySettingsServerItem(theme: theme, strings: strings, systemStyle: .glass, server: settings, activity: status.activity, active: active, color: active ? .accent : .secondary, label: status.text, labelAccent: status.textActive, editing: ProxySettingsServerItemEditing(editable: false, editing: false, revealed: false), sectionId: self.section, action: {
+                    arguments.activateServer(settings)
+                }, infoAction: {
+                    arguments.editServer(settings)
+                }, setServerWithRevealedOptions: { _, _ in
+                }, removeServer: { _ in
+                })
+            case let .autoConnectOnLaunch(_, text, value):
+                return ItemListSwitchItem(presentationData: presentationData, systemStyle: .glass, title: text, value: value, enableInteractiveChanges: true, enabled: true, sectionId: self.section, style: .blocks, updated: { value in
+                    arguments.toggleAutoConnectOnLaunch(value)
+                }, tag: ProxySettingsEntryTag.autoConnectOnLaunch)
             case let .serversHeader(_, text):
                 return ItemListSectionHeaderItem(presentationData: presentationData, text: text, sectionId: self.section)
             case let .addServer(_, text, _):
@@ -253,15 +415,71 @@ private enum ProxySettingsControllerEntry: ItemListNodeEntry {
     }
 }
 
-private func proxySettingsControllerEntries(theme: PresentationTheme, strings: PresentationStrings, state: ProxySettingsControllerState, proxySettings: ProxySettings, statuses: [ProxyServerSettings: ProxyServerStatus], connectionStatus: ConnectionStatus) -> [ProxySettingsControllerEntry] {
+private func proxySettingsDisplayStatus(strings: PresentationStrings, server: ProxyServerSettings, status: ProxyServerStatus) -> DisplayProxyServerStatus {
+    var text: String
+    switch server.connection {
+        case .socks5:
+            text = strings.ChatSettings_ConnectionType_UseSocks5
+        case .mtp:
+            text = strings.SocksProxySetup_ProxyTelegram
+    }
+    switch status {
+        case .notAvailable:
+            text = text + ", " + strings.SocksProxySetup_ProxyStatusUnavailable
+            return DisplayProxyServerStatus(activity: false, text: text, textActive: false)
+        case .checking:
+            text = text + ", " + strings.SocksProxySetup_ProxyStatusChecking
+            return DisplayProxyServerStatus(activity: false, text: text, textActive: false)
+        case let .available(rtt):
+            let pingTime: Int = Int(rtt * 1000.0)
+            text = text + ", \(strings.SocksProxySetup_ProxyStatusPing("\(pingTime)").string)"
+            return DisplayProxyServerStatus(activity: false, text: text, textActive: false)
+    }
+}
+
+private func proxySettingsBestServer(proxySettings: ProxySettings, statuses: [ProxyServerSettings: ProxyServerStatus]) -> ProxyServerSettings? {
+    var bestServer: ProxyServerSettings?
+    var bestRtt: Double?
+    for server in proxySettings.servers {
+        if case let .available(rtt)? = statuses[server] {
+            if let currentBestRtt = bestRtt, rtt >= currentBestRtt {
+                continue
+            }
+            bestServer = server
+            bestRtt = rtt
+        }
+    }
+    return bestServer
+}
+
+private func proxySettingsControllerEntries(theme: PresentationTheme, strings: PresentationStrings, state: ProxySettingsControllerState, proxySettings: ProxySettings, experimentalUISettings: ExperimentalUISettings, statuses: [ProxyServerSettings: ProxyServerStatus], connectionStatus: ConnectionStatus) -> [ProxySettingsControllerEntry] {
     var entries: [ProxySettingsControllerEntry] = []
+    let customStrings = proxySettingsCustomStrings(strings)
 
     entries.append(.enabled(theme, strings.ChatSettings_ConnectionType_UseProxy, proxySettings.enabled, proxySettings.servers.isEmpty))
+    entries.append(.callsHeader(theme, customStrings.callsHeader))
+    entries.append(.forceTcp(theme, customStrings.forceTcpTitle, experimentalUISettings.enableVoipTcp))
+    entries.append(.forceTcpInfo(theme, customStrings.forceTcpInfo))
+    
+    entries.append(.bestHeader(theme, customStrings.bestProxyHeader))
+    if let bestServer = proxySettingsBestServer(proxySettings: proxySettings, statuses: statuses) {
+        entries.append(.bestServer(theme, strings, bestServer, proxySettingsDisplayStatus(strings: strings, server: bestServer, status: statuses[bestServer] ?? .checking), proxySettings.enabled && bestServer == proxySettings.activeServer))
+    }
+    entries.append(.autoConnectOnLaunch(theme, customStrings.autoConnectOnLaunch, proxySettings.autoConnectOnLaunch))
+    
     entries.append(.serversHeader(theme, strings.SocksProxySetup_SavedProxies))
     entries.append(.addServer(theme, strings.SocksProxySetup_AddProxy, state.editing))
     var index = 0
     for server in proxySettings.servers {
-        let status: ProxyServerStatus = statuses[server] ?? .checking
+        var status: ProxyServerStatus = statuses[server] ?? .checking
+        if !proxySettings.enabled, case .notAvailable = status {
+            switch connectionStatus {
+                case .online:
+                    break
+                case .connecting, .waitingForNetwork, .updating:
+                    status = .checking
+            }
+        }
         let displayStatus: DisplayProxyServerStatus
         if proxySettings.enabled && server == proxySettings.activeServer {
             switch connectionStatus {
@@ -278,25 +496,7 @@ private func proxySettingsControllerEntries(theme: PresentationTheme, strings: P
                     displayStatus = DisplayProxyServerStatus(activity: false, text: text, textActive: true)
             }
         } else {
-            var text: String
-            switch server.connection {
-                case .socks5:
-                    text = strings.ChatSettings_ConnectionType_UseSocks5
-                case .mtp:
-                    text = strings.SocksProxySetup_ProxyTelegram
-            }
-            switch status {
-                case .notAvailable:
-                    text = text + ", " + strings.SocksProxySetup_ProxyStatusUnavailable
-                    displayStatus = DisplayProxyServerStatus(activity: false, text: text, textActive: false)
-                case .checking:
-                    text = text + ", " + strings.SocksProxySetup_ProxyStatusChecking
-                    displayStatus = DisplayProxyServerStatus(activity: false, text: text, textActive: false)
-                case let .available(rtt):
-                    let pingTime: Int = Int(rtt * 1000.0)
-                    text = text + ", \(strings.SocksProxySetup_ProxyStatusPing("\(pingTime)").string)"
-                    displayStatus = DisplayProxyServerStatus(activity: false, text: text, textActive: false)
-            }
+            displayStatus = proxySettingsDisplayStatus(strings: strings, server: server, status: status)
         }
         entries.append(.server(index, theme, strings, server, server == proxySettings.activeServer, displayStatus, ProxySettingsServerItemEditing(editable: true, editing: state.editing, revealed: state.revealedServer == server), proxySettings.enabled))
         index += 1
@@ -304,12 +504,6 @@ private func proxySettingsControllerEntries(theme: PresentationTheme, strings: P
     if !proxySettings.servers.isEmpty {
         entries.append(.shareProxyList(theme, strings.SocksProxySetup_ShareProxyList))
     }
-    
-    if let activeServer = proxySettings.activeServer, case .socks5 = activeServer.connection {
-        entries.append(.useForCalls(theme, strings.SocksProxySetup_UseForCalls, proxySettings.useForCalls))
-        entries.append(.useForCallsInfo(theme, strings.SocksProxySetup_UseForCallsHelp))
-    }
-    
     return entries
 }
 
@@ -404,6 +598,18 @@ public func proxySettingsController(accountManager: AccountManager<TelegramAccou
             current.useForCalls = value
             return current
         }).start()
+    }, toggleAutoConnectOnLaunch: { value in
+        let _ = updateProxySettingsInteractively(accountManager: accountManager, { current in
+            var current = current
+            current.autoConnectOnLaunch = value
+            return current
+        }).start()
+    }, toggleForceTcp: { value in
+        let _ = updateExperimentalUISettingsInteractively(accountManager: accountManager, { current in
+            var current = current
+            current.enableVoipTcp = value
+            return current
+        }).start()
     }, shareProxyList: {
        shareProxyListImpl?()
     })
@@ -418,13 +624,34 @@ public func proxySettingsController(accountManager: AccountManager<TelegramAccou
         }
     })
     
+    let experimentalUISettings = Promise<ExperimentalUISettings>()
+    experimentalUISettings.set(accountManager.sharedData(keys: [ApplicationSpecificSharedDataKeys.experimentalUISettings])
+    |> map { sharedData -> ExperimentalUISettings in
+        if let value = sharedData.entries[ApplicationSpecificSharedDataKeys.experimentalUISettings]?.get(ExperimentalUISettings.self) {
+            return value
+        } else {
+            return ExperimentalUISettings.defaultSettings
+        }
+    })
+    
     let statusesContext = ProxyServersStatuses(network: network, servers: proxySettings.get()
     |> map { proxySettings -> [ProxyServerSettings] in
         return proxySettings.servers
     })
     
-    let signal = combineLatest(updatedPresentationData, statePromise.get(), proxySettings.get(), statusesContext.statuses(), network.connectionStatus)
-    |> map { presentationData, state, proxySettings, statuses, connectionStatus -> (ItemListControllerState, (ItemListNodeState, Any)) in
+    let signal = combineLatest(updatedPresentationData, statePromise.get(), proxySettings.get(), experimentalUISettings.get(), statusesContext.statuses(), network.connectionStatus)
+    |> map { presentationData, state, proxySettings, experimentalUISettings, statuses, connectionStatus -> (ItemListControllerState, (ItemListNodeState, Any)) in
+        if proxySettings.enabled && proxySettings.autoConnectOnLaunch, let bestServer = proxySettingsBestServer(proxySettings: proxySettings, statuses: statuses), proxySettings.activeServer != bestServer {
+            let _ = updateProxySettingsInteractively(accountManager: accountManager, { current in
+                var current = current
+                guard current.enabled && current.autoConnectOnLaunch else {
+                    return current
+                }
+                current.activeServer = bestServer
+                return current
+            }).start()
+        }
+        
         var leftNavigationButton: ItemListNavigationButton?
         if case .modal = mode {
             leftNavigationButton = ItemListNavigationButton(content: .text(presentationData.strings.Common_Cancel), style: .regular, enabled: true, action: {
@@ -453,8 +680,8 @@ public func proxySettingsController(accountManager: AccountManager<TelegramAccou
             })
         }
         
-        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text(presentationData.strings.SocksProxySetup_Title), leftNavigationButton: leftNavigationButton, rightNavigationButton: rightNavigationButton, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
-        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: proxySettingsControllerEntries(theme: presentationData.theme, strings: presentationData.strings, state: state, proxySettings: proxySettings, statuses: statuses, connectionStatus: connectionStatus), style: .blocks, ensureVisibleItemTag: focusOnItemTag)
+        let controllerState = ItemListControllerState(presentationData: ItemListPresentationData(presentationData), title: .text(proxySettingsCustomStrings(presentationData.strings).connectionTitle), leftNavigationButton: leftNavigationButton, rightNavigationButton: rightNavigationButton, backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back))
+        let listState = ItemListNodeState(presentationData: ItemListPresentationData(presentationData), entries: proxySettingsControllerEntries(theme: presentationData.theme, strings: presentationData.strings, state: state, proxySettings: proxySettings, experimentalUISettings: experimentalUISettings, statuses: statuses, connectionStatus: connectionStatus), style: .blocks, ensureVisibleItemTag: focusOnItemTag)
         
         return (controllerState, (listState, arguments))
     }

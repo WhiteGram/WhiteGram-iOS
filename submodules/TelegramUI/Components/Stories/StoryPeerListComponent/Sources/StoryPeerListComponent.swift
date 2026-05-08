@@ -9,6 +9,7 @@ import TelegramCore
 import Postbox
 import SwiftSignalKit
 import TelegramPresentationData
+import TelegramUIPreferences
 import StoryContainerScreen
 import EmojiStatusComponent
 import ChatListTitleView
@@ -578,7 +579,8 @@ public final class StoryPeerListComponent: Component {
             if !self.ignoreScrolling {
                 self.updateScrolling(transition: .immediate)
                 
-                let willComposeOnRelease = scrollView.contentOffset.x <= -70.0
+                let disableWhiteGramStoryRecordingSwipe = WhiteGramStorySettings.current.disableStories || WhiteGramStorySettings.current.disableStoryRecording || WhiteGramStorySettings.current.disableStoryRecordingSwipe
+                let willComposeOnRelease = !disableWhiteGramStoryRecordingSwipe && scrollView.contentOffset.x <= -70.0
                 if self.willComposeOnRelease != willComposeOnRelease {
                     self.willComposeOnRelease = willComposeOnRelease
                     
@@ -589,7 +591,7 @@ public final class StoryPeerListComponent: Component {
                     }
                 }
                 
-                if scrollView.isScrollEnabled && scrollView.isTracking, scrollView.contentOffset.x <= -85.0 {
+                if !disableWhiteGramStoryRecordingSwipe && scrollView.isScrollEnabled && scrollView.isTracking, scrollView.contentOffset.x <= -85.0 {
                     scrollView.isScrollEnabled = false
                     scrollView.panGestureRecognizer.isEnabled = false
                     scrollView.panGestureRecognizer.isEnabled = true
@@ -610,7 +612,8 @@ public final class StoryPeerListComponent: Component {
                 
         public func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
             if !self.ignoreScrolling {
-                if scrollView.isScrollEnabled && scrollView.contentOffset.x <= -70.0 {
+                let disableWhiteGramStoryRecordingSwipe = WhiteGramStorySettings.current.disableStories || WhiteGramStorySettings.current.disableStoryRecording || WhiteGramStorySettings.current.disableStoryRecordingSwipe
+                if !disableWhiteGramStoryRecordingSwipe && scrollView.isScrollEnabled && scrollView.contentOffset.x <= -70.0 {
                     scrollView.isScrollEnabled = false
                     scrollView.panGestureRecognizer.isEnabled = false
                     scrollView.panGestureRecognizer.isEnabled = true
@@ -1145,7 +1148,8 @@ public final class StoryPeerListComponent: Component {
                 unseenCount = itemSet.unseenCount
                 
                 var composeContentOffset: CGFloat?
-                if peer.id == component.context.account.peerId && collapsedState.sideAlphaFraction == 1.0 && self.scrollView.contentOffset.x < 0.0 {
+                let disableWhiteGramStoryRecordingSwipe = WhiteGramStorySettings.current.disableStories || WhiteGramStorySettings.current.disableStoryRecording || WhiteGramStorySettings.current.disableStoryRecordingSwipe
+                if !disableWhiteGramStoryRecordingSwipe && peer.id == component.context.account.peerId && collapsedState.sideAlphaFraction == 1.0 && self.scrollView.contentOffset.x < 0.0 {
                     composeContentOffset = self.scrollView.contentOffset.x * -1.0
                 }
                 
@@ -1379,12 +1383,15 @@ public final class StoryPeerListComponent: Component {
             let collapsedTitleOffset = targetCollapsedTitleOffset - defaultCollapsedTitleOffset
             
             let titleMinContentOffset: CGFloat = collapsedTitleOffset.interpolate(to: collapsedTitleOffset + 12.0, amount: collapsedState.minFraction * (1.0 - collapsedState.activityFraction))
+            let titleSafeMinX = component.minTitleX
+            let titleSafeMaxX = max(titleSafeMinX, component.maxTitleX)
+            let expandedTitleContentOffset: CGFloat = titleSafeMinX + max(0.0, titleSafeMaxX - titleSafeMinX - collapsedState.titleWidth) * 0.5
             
             var titleContentOffset: CGFloat
             if self.sortedItems.isEmpty {
                 titleContentOffset = collapsedTitleOffset
             } else {
-                titleContentOffset = titleMinContentOffset.interpolate(to: ((itemLayout.containerSize.width - collapsedState.titleWidth) * 0.5) as CGFloat, amount: min(1.0, collapsedState.maxFraction) * (1.0 - collapsedState.activityFraction))
+                titleContentOffset = titleMinContentOffset.interpolate(to: expandedTitleContentOffset, amount: min(1.0, collapsedState.maxFraction) * (1.0 - collapsedState.activityFraction))
                 titleContentOffset += -expandBoundsFraction * 4.0
             }
             

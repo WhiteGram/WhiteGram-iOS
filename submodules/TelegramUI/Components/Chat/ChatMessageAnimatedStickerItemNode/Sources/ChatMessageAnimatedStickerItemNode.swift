@@ -8,6 +8,7 @@ import Postbox
 import TelegramCore
 import CoreImage
 import TelegramPresentationData
+import TelegramUIPreferences
 import Compression
 import TextFormat
 import AccountContext
@@ -90,7 +91,7 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
     private var animationSize: CGSize?
     private var didSetUpAnimationNode = false
     private var isPlaying = false
-    
+
     private let textNode: TextNodeWithEntities
     
     private var additionalAnimationNodes: [ChatMessageTransitionNode.DecorationItemNode] = []
@@ -259,6 +260,13 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
         fatalError("init(coder:) has not been implemented")
     }
     
+    private func shouldDisablePremiumStickerAnimation(file: TelegramMediaFile?) -> Bool {
+        guard let file, file.isPremiumSticker else {
+            return false
+        }
+        return !WhiteGramChatSettings.current.animatePremiumStickers
+    }
+
     private func removePlaceholder(animated: Bool) {
         self.placeholderNode.alpha = 0.0
         if !animated {
@@ -595,7 +603,9 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
         
         if let telegramFile = self.telegramFile {
             file = telegramFile
-            if !item.context.sharedContext.energyUsageSettings.loopStickers {
+            if self.shouldDisablePremiumStickerAnimation(file: telegramFile) {
+                playbackMode = .still(.start)
+            } else if !item.context.sharedContext.energyUsageSettings.loopStickers {
                 playbackMode = .once
             }
         } else if let emojiFile = self.emojiFile {
@@ -606,6 +616,9 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
             } else {
                 isEmoji = true
                 playbackMode = .still(.end)
+                if !WhiteGramChatSettings.current.animateEmojiStickers {
+                    playbackMode = .still(.start)
+                }
                 
                 let (_, fitz) = item.message.text.basicEmoji
                 if let fitz = fitz {
@@ -614,7 +627,14 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
             }
         }
         
-        let isPlaying = self.visibilityStatus == true && !self.forceStopAnimations
+        var isPlaying = self.visibilityStatus == true && !self.forceStopAnimations
+        let premiumStickerAnimationDisabled = self.shouldDisablePremiumStickerAnimation(file: self.telegramFile)
+        if premiumStickerAnimationDisabled {
+            isPlaying = false
+        }
+        if isEmoji && !WhiteGramChatSettings.current.animateEmojiStickers {
+            isPlaying = false
+        }
         
         var effectiveVisibility = self.visibility
         if !isPlaying {
@@ -642,6 +662,11 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
         }
         
         if let animationNode = self.animationNode as? AnimatedStickerNode {
+            animationNode.isHidden = premiumStickerAnimationDisabled
+            if premiumStickerAnimationDisabled {
+                self.imageNode.alpha = 1.0
+            }
+
             if self.isPlaying != isPlaying || (isPlaying && !self.didSetUpAnimationNode) {
                 self.isPlaying = isPlaying
                 
@@ -667,8 +692,17 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                     }
                 }
             }
+        } else {
+            self.animationNode?.isHidden = premiumStickerAnimationDisabled
         }
         
+        if premiumStickerAnimationDisabled {
+            canPlayEffects = false
+        }
+        if isEmoji && !WhiteGramChatSettings.current.animateEmojiStickers {
+            canPlayEffects = false
+        }
+
         if canPlayEffects, let animationNode = self.animationNode as? AnimatedStickerNode {
             var effectAlreadySeen = true
             if item.message.flags.contains(.Incoming) {
@@ -714,7 +748,7 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                     if item.message.id.peerId.namespace == Namespaces.Peer.CloudUser {
                         self.playAdditionalEmojiAnimation(index: 1)
                     }
-                } else if let file = file, file.isPremiumSticker {
+                } else if let file = file, file.isPremiumSticker, !self.shouldDisablePremiumStickerAnimation(file: file) {
                     Queue.mainQueue().after(0.1) {
                         self.playPremiumStickerAnimation()
                     }
@@ -873,6 +907,7 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                 imageVerticalInset = -20.0
                 imageHorizontalOffset = 12.0
             }
+            let stickerScale = CGFloat(WhiteGramChatSettings.current.stickerSizePercent) / 100.0
             
             var textLayoutAndApply: (TextNodeLayout, (TextNodeWithEntities.Arguments) -> TextNodeWithEntities)?
             var imageInset: CGFloat = 10.0
@@ -1080,6 +1115,13 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                 
                 imageInset = 0.0
             }
+
+            let isStandaloneStickerLikeContent = telegramFile != nil || emojiFile != nil || emojiString != nil
+            if isStandaloneStickerLikeContent {
+                imageSize = CGSize(width: max(1.0, floor(imageSize.width * stickerScale)), height: max(1.0, floor(imageSize.height * stickerScale)))
+            }
+            let stickerIsDisabled = isStandaloneStickerLikeContent && WhiteGramChatSettings.current.stickerSizePercent == 0
+            let premiumStickerAnimationDisabled = telegramFile?.isPremiumSticker == true && !WhiteGramChatSettings.current.animatePremiumStickers
                         
             var layoutInsets = UIEdgeInsets(top: mergedTop.merged ? layoutConstants.bubble.mergedSpacing : layoutConstants.bubble.defaultSpacing, left: 0.0, bottom: mergedBottom.merged ? layoutConstants.bubble.mergedSpacing : layoutConstants.bubble.defaultSpacing, right: 0.0)
             if dateHeaderAtBottom.hasDate && dateHeaderAtBottom.hasTopic {
@@ -1131,7 +1173,7 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
             var starsCount: Int64?
             var tonAmount: Int64?
             var dateReactionsAndPeers = mergedMessageReactionsAndPeers(accountPeerId: item.context.account.peerId, accountPeer: item.associatedData.accountPeer, message: item.message)
-            if item.message.isRestricted(platform: "ios", contentSettings: item.context.currentContentSettings.with { $0 }) {
+            if item.message.isRestricted(platform: "ios", contentSettings: item.context.currentContentSettings.with { $0 }) || whiteGramShouldHideChannelPostReactions(message: item.message) {
                 dateReactionsAndPeers = ([], [])
             }
             for attribute in item.message.attributes {
@@ -1152,7 +1194,7 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                 tonAmount = stakeTonAmount
             }
             
-            let dateText = stringForMessageTimestampStatus(accountPeerId: item.context.account.peerId, message: item.message, dateTimeFormat: item.presentationData.dateTimeFormat, nameDisplayOrder: item.presentationData.nameDisplayOrder, strings: item.presentationData.strings, format: .regular, associatedData: item.associatedData)
+            let dateText = WhiteGramChatSettings.current.showStickerTime ? stringForMessageTimestampStatus(accountPeerId: item.context.account.peerId, message: item.message, dateTimeFormat: item.presentationData.dateTimeFormat, nameDisplayOrder: item.presentationData.nameDisplayOrder, strings: item.presentationData.strings, format: .regular, associatedData: item.associatedData) : ""
             
             var isReplyThread = false
             if case .replyThread = item.chatLocation {
@@ -1189,6 +1231,7 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
             ))
             
             let (dateAndStatusSize, dateAndStatusApply) = statusSuggestedWidthAndContinue.1(statusSuggestedWidthAndContinue.0)
+            let placeStatusBelowSticker = isStandaloneStickerLikeContent && stickerScale < 1.0 && dateAndStatusSize.height > 0.0
             
             var viaBotApply: (TextNodeLayout, () -> TextNode)?
             let threadInfoApply: (CGSize, (Bool) -> ChatMessageThreadInfoNode)? = nil
@@ -1430,7 +1473,9 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
             }
             
             let reactions: ReactionsMessageAttribute
-            if shouldDisplayInlineDateReactions(message: item.message, isPremium: item.associatedData.isPremium, forceInline: item.associatedData.forceInlineReactions) {
+            if let channel = item.message.peers[item.message.id.peerId] as? TelegramChannel, case .broadcast = channel.info, !WhiteGramChatSettings.current.channelPostReactions {
+                reactions = ReactionsMessageAttribute(canViewList: false, isTags: false, reactions: [], recentPeers: [], topPeers: [])
+            } else if shouldDisplayInlineDateReactions(message: item.message, isPremium: item.associatedData.isPremium, forceInline: item.associatedData.forceInlineReactions) {
                 reactions = ReactionsMessageAttribute(canViewList: false, isTags: false, reactions: [], recentPeers: [], topPeers: [])
             } else {
                 reactions = mergedMessageReactions(attributes: item.message.attributes, isTags: item.message.areReactionsTags(accountPeerId: item.context.account.peerId)) ?? ReactionsMessageAttribute(canViewList: false, isTags: false, reactions: [], recentPeers: [], topPeers: [])
@@ -1464,6 +1509,9 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
             }
             
             var layoutSize = CGSize(width: params.width, height: contentHeight)
+            if placeStatusBelowSticker {
+                layoutSize.height += dateAndStatusSize.height + 6.0
+            }
             if let actionButtonsSizeAndApply = actionButtonsSizeAndApply {
                 layoutSize.height += actionButtonsSizeAndApply.0.height
             }
@@ -1644,6 +1692,9 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                     }
                     
                     animation.animator.updateFrame(layer: strongSelf.imageNode.layer, frame: updatedContentFrame, completion: nil)
+                    strongSelf.imageNode.isHidden = stickerIsDisabled
+                    strongSelf.animationNode?.isHidden = stickerIsDisabled || premiumStickerAnimationDisabled
+                    strongSelf.placeholderNode.isHidden = stickerIsDisabled
                     
                     strongSelf.contextSourceNode.contentRect = contextContentFrame
                     strongSelf.containerNode.targetNodeForActivationProgressContentRect = strongSelf.contextSourceNode.contentRect
@@ -1719,7 +1770,10 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                         strongSelf.shareButtonNode = nil
                     }
                     
-                    let dateAndStatusFrame = CGRect(origin: CGPoint(x: max(displayLeftInset, updatedImageFrame.maxX - dateAndStatusSize.width - 4.0), y: updatedImageFrame.maxY - dateAndStatusSize.height - 4.0 + imageBottomPadding), size: dateAndStatusSize)
+                    var dateAndStatusFrame = CGRect(origin: CGPoint(x: max(displayLeftInset, updatedImageFrame.maxX - dateAndStatusSize.width - 4.0), y: updatedImageFrame.maxY - dateAndStatusSize.height - 4.0 + imageBottomPadding), size: dateAndStatusSize)
+                    if placeStatusBelowSticker {
+                        dateAndStatusFrame.origin.y = updatedImageFrame.maxY + imageBottomPadding + 2.0
+                    }
                     animation.animator.updateFrame(layer: strongSelf.dateAndStatusNode.layer, frame: dateAndStatusFrame, completion: nil)
                     dateAndStatusApply(animation)
                     if case .customChatContents = item.associatedData.subject {
@@ -1965,6 +2019,9 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                     if let reactionButtonsSizeAndApply = reactionButtonsSizeAndApply {
                         let reactionButtonsNode = reactionButtonsSizeAndApply.1(animation)
                         var reactionButtonsFrame = CGRect(origin: CGPoint(x: imageFrame.minX, y: imageFrame.maxY + imageVerticalInset + imageBottomPadding), size: reactionButtonsSizeAndApply.0)
+                        if placeStatusBelowSticker {
+                            reactionButtonsFrame.origin.y = dateAndStatusFrame.maxY + 6.0
+                        }
                         if !incoming {
                             reactionButtonsFrame.origin.x = imageFrame.maxX - reactionButtonsSizeAndApply.0.width
                         }
@@ -2066,6 +2123,14 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
         switch recognizer.state {
         case .ended:
             if let item = self.item, let (gesture, location) = recognizer.lastRecognizedGestureAndLocation {
+                if case .doubleTap = gesture, self.performWhiteGramChannelPostDoubleTapAction(item: item, subFrame: self.imageNode.frame) {
+                    self.containerNode.cancelGesture()
+                    return
+                }
+                if case .doubleTap = gesture, self.performWhiteGramPersonalDoubleTapAction(item: item, subFrame: self.imageNode.frame) {
+                    self.containerNode.cancelGesture()
+                    return
+                }
                 if let action = self.gestureRecognized(gesture: gesture, location: location, recognizer: recognizer) {
                     if case .doubleTap = gesture {
                         self.containerNode.cancelGesture()
@@ -2094,7 +2159,68 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
             break
         }
     }
+
+    private func performWhiteGramChannelPostDoubleTapAction(item: ChatMessageItem, subFrame: CGRect) -> Bool {
+        guard let channel = item.message.peers[item.message.id.peerId] as? TelegramChannel, case .broadcast = channel.info else {
+            return false
+        }
+        let settings = WhiteGramChatSettings.current
+        switch settings.channelPostDoubleTapAction {
+        case .savedMessages:
+            if !item.controllerInteraction.performPersonalChatDoubleTapAction(item.message, .savedMessages) {
+                item.controllerInteraction.openMessageContextMenu(item.message, false, self, subFrame, nil, nil)
+            }
+        case .reaction:
+            if canAddMessageReactions(message: item.message) {
+                item.controllerInteraction.updateMessageReaction(item.message, .default, false, nil)
+            } else {
+                item.controllerInteraction.openMessageContextMenu(item.message, false, self, subFrame, nil, nil)
+            }
+        case .forward:
+            item.controllerInteraction.openMessageShareMenu(item.message.id)
+        case .reply:
+            item.controllerInteraction.setupReply(item.message.id)
+        case .select:
+            item.controllerInteraction.toggleMessagesSelection([item.message.id], true)
+        case .copy:
+            item.controllerInteraction.copyText(item.message.text)
+        case .contextMenu:
+            item.controllerInteraction.openMessageContextMenu(item.message, false, self, subFrame, nil, nil)
+        }
+        return true
+    }
     
+    private func performWhiteGramPersonalDoubleTapAction(item: ChatMessageItem, subFrame: CGRect) -> Bool {
+        let chatPeerId = item.chatLocation.peerId ?? item.message.id.peerId
+        guard chatPeerId.namespace == Namespaces.Peer.CloudUser || chatPeerId.namespace == Namespaces.Peer.SecretChat else {
+            return false
+        }
+        let settings = WhiteGramChatSettings.current
+        switch settings.personalChatDoubleTapAction {
+        case .savedMessages, .edit, .pin:
+            if !item.controllerInteraction.performPersonalChatDoubleTapAction(item.message, settings.personalChatDoubleTapAction) {
+                item.controllerInteraction.openMessageContextMenu(item.message, false, self, subFrame, nil, nil)
+            }
+        case .reaction:
+            if canAddMessageReactions(message: item.message) {
+                item.controllerInteraction.updateMessageReaction(item.message, .default, false, nil)
+            } else {
+                item.controllerInteraction.openMessageContextMenu(item.message, false, self, subFrame, nil, nil)
+            }
+        case .forward:
+            item.controllerInteraction.openMessageShareMenu(item.message.id)
+        case .reply:
+            item.controllerInteraction.setupReply(item.message.id)
+        case .select:
+            item.controllerInteraction.toggleMessagesSelection([item.message.id], true)
+        case .copy:
+            item.controllerInteraction.copyText(item.message.text)
+        case .contextMenu:
+            item.controllerInteraction.openMessageContextMenu(item.message, false, self, subFrame, nil, nil)
+        }
+        return true
+    }
+
     private func startAdditionalAnimationsCommitTimer() {
         guard self.additionalAnimationsCommitTimer == nil else {
             return
@@ -2206,6 +2332,9 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
     private var playedPremiumStickerAnimation = false
     func playPremiumStickerAnimation() {
         guard !self.playedPremiumStickerAnimation, let item = self.item, let file = self.telegramFile, file.isPremiumSticker, let effect = file.videoThumbnails.first else {
+            return
+        }
+        guard !self.shouldDisablePremiumStickerAnimation(file: file) else {
             return
         }
         self.playedPremiumStickerAnimation = true
@@ -2588,7 +2717,7 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
                         }
                     })
                     
-                    if file.isPremiumSticker && !noPremium {
+                    if file.isPremiumSticker && !noPremium && !self.shouldDisablePremiumStickerAnimation(file: file) {
                         return .optionalAction({
                             if self.additionalAnimationNodes.isEmpty {
                                 self.playedPremiumStickerAnimation = false
@@ -2668,6 +2797,9 @@ public class ChatMessageAnimatedStickerItemNode: ChatMessageItemView {
     
     private var playedSwipeToReplyHaptic = false
     @objc private func swipeToReplyGesture(_ recognizer: ChatSwipeToReplyRecognizer) {
+        guard WhiteGramChatSettings.current.swipeToReply else {
+            return
+        }
         var offset: CGFloat = 0.0
         var leftOffset: CGFloat = 0.0
         var swipeOffset: CGFloat = 45.0

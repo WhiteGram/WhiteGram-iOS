@@ -13,11 +13,13 @@ public final class HeaderPanelContainerComponent: Component {
     public final class Panel: Equatable {
         public let key: AnyHashable
         public let orderIndex: Int
+        public let hidesBackground: Bool
         public let component: AnyComponent<Empty>
         
-        public init(key: AnyHashable, orderIndex: Int, component: AnyComponent<Empty>) {
+        public init(key: AnyHashable, orderIndex: Int, hidesBackground: Bool = false, component: AnyComponent<Empty>) {
             self.key = key
             self.orderIndex = orderIndex
+            self.hidesBackground = hidesBackground
             self.component = component
         }
         
@@ -26,6 +28,9 @@ public final class HeaderPanelContainerComponent: Component {
                 return false
             }
             if lhs.orderIndex != rhs.orderIndex {
+                return false
+            }
+            if lhs.hidesBackground != rhs.hidesBackground {
                 return false
             }
             if lhs.component != rhs.component {
@@ -80,11 +85,27 @@ public final class HeaderPanelContainerComponent: Component {
             fatalError("init(coder:) has not been implemented")
         }
     }
+
+    private final class OverlayContentContainerView: UIView {
+        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+            if self.isHidden || self.alpha == 0.0 || !self.isUserInteractionEnabled {
+                return nil
+            }
+
+            for subview in self.subviews.reversed() {
+                if let result = subview.hitTest(self.convert(point, to: subview), with: event) {
+                    return result
+                }
+            }
+            return nil
+        }
+    }
     
     public final class View: UIView {
         private let backgroundContainer: GlassBackgroundContainerView
         private let backgroundView: GlassBackgroundView
         private let contentContainer: UIView
+        private let overlayContentContainer: UIView
         
         private var tabsView: ComponentView<Empty>?
         private var panelViews: [AnyHashable: PanelItemView] = [:]
@@ -105,11 +126,14 @@ public final class HeaderPanelContainerComponent: Component {
             self.backgroundView = GlassBackgroundView()
             self.contentContainer = UIView()
             self.contentContainer.clipsToBounds = true
+            self.overlayContentContainer = OverlayContentContainerView()
+            self.overlayContentContainer.clipsToBounds = false
             
             super.init(frame: frame)
             
             self.backgroundContainer.contentView.addSubview(self.backgroundView)
             self.addSubview(self.backgroundContainer)
+            self.addSubview(self.overlayContentContainer)
             
             self.backgroundView.contentView.addSubview(self.contentContainer)
         }
@@ -132,6 +156,7 @@ public final class HeaderPanelContainerComponent: Component {
             var size = CGSize(width: availableSize.width, height: 0.0)
             
             var isFirstPanel = true
+            var hasVisibleBackground = component.tabs != nil
             
             if let tabs = component.tabs {
                 let tabsView: ComponentView<Empty>
@@ -174,6 +199,9 @@ public final class HeaderPanelContainerComponent: Component {
             var validPanelKeys: [AnyHashable] = []
             for panel in component.panels {
                 validPanelKeys.append(panel.key)
+                if !panel.hidesBackground {
+                    hasVisibleBackground = true
+                }
                 
                 var panelTransition = transition
                 let panelView: PanelItemView
@@ -184,7 +212,6 @@ public final class HeaderPanelContainerComponent: Component {
                     panelView = PanelItemView()
                     self.panelViews[panel.key] = panelView
                     self.contentContainer.layer.insertSublayer(panelView.separator, at: 0)
-                    self.contentContainer.addSubview(panelView)
                 }
                 
                 let panelSize = panelView.view.update(
@@ -194,10 +221,18 @@ public final class HeaderPanelContainerComponent: Component {
                     containerSize: CGSize(width: availableSize.width - sideInset * 2.0, height: 10000.0)
                 )
                 let panelFrame = CGRect(origin: CGPoint(x: 0.0, y: size.height), size: panelSize)
+                let targetContainer = panel.hidesBackground ? self.overlayContentContainer : self.contentContainer
+                let panelViewWasDetached = panelView.superview == nil
+                if panelView.superview !== targetContainer {
+                    panelView.removeFromSuperview()
+                    targetContainer.addSubview(panelView)
+                }
                 if let panelComponentView = panelView.view.view {
                     if panelComponentView.superview == nil {
                         panelView.addSubview(panelComponentView)
-                        transition.animateAlpha(view: panelView, from: 0.0, to: 1.0)
+                        if panelViewWasDetached {
+                            transition.animateAlpha(view: panelView, from: 0.0, to: 1.0)
+                        }
                         panelView.separator.opacity = 0.0
                         panelView.clipsToBounds = true
                         if isAnimatingReplacement {
@@ -218,7 +253,7 @@ public final class HeaderPanelContainerComponent: Component {
                     panelTransition.setFrame(view: panelComponentView, frame: CGRect(origin: CGPoint(), size: panelFrame.size))
                     panelTransition.setFrame(layer: panelView.separator, frame: CGRect(origin: panelFrame.origin, size: CGSize(width: panelFrame.width, height: UIScreenPixel)))
                     
-                    transition.setAlpha(layer: panelView.separator, alpha: isFirstPanel ? 0.0 : 1.0)
+                    transition.setAlpha(layer: panelView.separator, alpha: (isFirstPanel || panel.hidesBackground) ? 0.0 : 1.0)
                 }
                 size.height += panelSize.height
                 isFirstPanel = false
@@ -265,11 +300,12 @@ public final class HeaderPanelContainerComponent: Component {
             }
             
             transition.setFrame(view: self.backgroundView, frame: backgroundFrame)
-            self.backgroundView.update(size: backgroundFrame.size, cornerRadius: cornerRadius, isDark: component.theme.overallDarkAppearance, tintColor: .init(kind: component.preferClearGlass ? .clear : .panel), isInteractive: true, transition: transition)
+            self.backgroundView.update(size: backgroundFrame.size, cornerRadius: cornerRadius, isDark: component.theme.overallDarkAppearance, tintColor: .init(kind: component.preferClearGlass ? .clear : .panel), isInteractive: true, isVisible: hasVisibleBackground, transition: transition)
             
-            transition.setAlpha(view: self.backgroundContainer, alpha: (component.tabs != nil || !component.panels.isEmpty) ? 1.0 : 0.0)
+            transition.setAlpha(view: self.backgroundContainer, alpha: hasVisibleBackground ? 1.0 : 0.0)
             
             transition.setFrame(view: self.contentContainer, frame: CGRect(origin: CGPoint(), size: backgroundFrame.size))
+            transition.setFrame(view: self.overlayContentContainer, frame: CGRect(origin: CGPoint(x: sideInset, y: 0.0), size: CGSize(width: backgroundFrame.width, height: size.height)))
             
             transition.setCornerRadius(layer: self.contentContainer.layer, cornerRadius: min(cornerRadius, backgroundFrame.height * 0.5))
             

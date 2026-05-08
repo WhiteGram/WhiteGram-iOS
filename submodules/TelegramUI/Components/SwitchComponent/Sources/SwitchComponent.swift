@@ -57,8 +57,15 @@ public final class SwitchComponent: Component {
         
         func update(component: SwitchComponent, availableSize: CGSize, state: EmptyComponentState, environment: Environment<EnvironmentType>, transition: ComponentTransition) -> CGSize {
             self.component = component
-          
-            self.switchView.tintColor = component.tintColor
+
+            if #available(iOS 26.0, *) {
+                self.switchView.backgroundColor = .clear
+                self.switchView.tintColor = nil
+                self.switchView.onTintColor = nil
+                self.switchView.thumbTintColor = nil
+            } else {
+                self.switchView.tintColor = component.tintColor
+            }
             self.switchView.setOn(component.value, animated: !transition.animation.isImmediate)
             
             self.switchView.sizeToFit()

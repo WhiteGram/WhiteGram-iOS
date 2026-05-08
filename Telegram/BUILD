@@ -295,23 +295,24 @@ filegroup(
 filegroup(
     name = "DefaultIcon",
     srcs = glob([
-        "Telegram-iOS/AppIcons.xcassets/BlueIcon.appiconset/*.png",
+        "Telegram-iOS/AppIcons.xcassets/Default.appiconset/*.png",
     ]),
 )
 
 alternate_icon_folders = [
-    "BlackIcon",
-    "BlackClassicIcon",
-    "BlackFilledIcon",
-    "BlueIcon",
-    "BlueClassicIcon",
-    "BlueFilledIcon",
-    "WhiteFilledIcon",
-    "New1",
-    "New2",
-    "Premium",
-    "PremiumBlack",
-    "PremiumTurbo",
+    "Aqua",
+    "Azure",
+    "MonoDark",
+    "MonoLite",
+    "Aura",
+    "Depth",
+    "Steel",
+    "Chrome",
+    "NeonWawe",
+    "Glow",
+    "Frost",
+    "Obsidian",
+    "Crystal",
 ]
 
 composer_icon_folders = ["Telegram"]

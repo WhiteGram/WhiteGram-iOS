@@ -605,7 +605,9 @@ public class ChatMessageInstantVideoItemNode: ChatMessageItemView, ASGestureReco
             }
             
             let reactions: ReactionsMessageAttribute
-            if shouldDisplayInlineDateReactions(message: item.message, isPremium: item.associatedData.isPremium, forceInline: item.associatedData.forceInlineReactions) {
+            if whiteGramShouldHideChannelPostReactions(message: item.message) {
+                reactions = ReactionsMessageAttribute(canViewList: false, isTags: false, reactions: [], recentPeers: [], topPeers: [])
+            } else if shouldDisplayInlineDateReactions(message: item.message, isPremium: item.associatedData.isPremium, forceInline: item.associatedData.forceInlineReactions) {
                 reactions = ReactionsMessageAttribute(canViewList: false, isTags: false, reactions: [], recentPeers: [], topPeers: [])
             } else {
                 reactions = mergedMessageReactions(attributes: item.message.attributes, isTags: item.message.areReactionsTags(accountPeerId: item.context.account.peerId)) ?? ReactionsMessageAttribute(canViewList: false, isTags: false, reactions: [], recentPeers: [], topPeers: [])
@@ -1071,6 +1073,9 @@ public class ChatMessageInstantVideoItemNode: ChatMessageItemView, ASGestureReco
         
     private var playedSwipeToReplyHaptic = false
     @objc private func swipeToReplyGesture(_ recognizer: ChatSwipeToReplyRecognizer) {
+        guard WhiteGramChatSettings.current.swipeToReply else {
+            return
+        }
         var offset: CGFloat = 0.0
         var leftOffset: CGFloat = 0.0
         var swipeOffset: CGFloat = 45.0

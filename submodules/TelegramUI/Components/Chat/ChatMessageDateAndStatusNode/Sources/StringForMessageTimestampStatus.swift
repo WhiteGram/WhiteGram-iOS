@@ -91,8 +91,9 @@ public func stringForMessageTimestampStatus(accountPeerId: PeerId, message: Mess
         timestamp = orignalDate
     }
     
-    var dateText = stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat)
-    if timestamp == scheduleWhenOnlineTimestamp {
+    let whiteGramSettings = WhiteGramChatSettings.current
+    var dateText = whiteGramSettings.hideMessageTimestamp ? "" : stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat, withSeconds: whiteGramSettings.showSecondsInMessageTimestamp)
+    if !whiteGramSettings.hideMessageTimestamp && timestamp == scheduleWhenOnlineTimestamp {
         dateText = "         "
     }
     
@@ -149,9 +150,13 @@ public func stringForMessageTimestampStatus(accountPeerId: PeerId, message: Mess
         } else {
             dayText = strings.Date_ChatDateHeaderYear(monthAtIndex(Int(timeinfo.tm_mon), strings: strings), "\(timeinfo.tm_mday)", "\(1900 + timeinfo.tm_year)").string
         }
-        dateText = strings.Message_FullDateFormat(dayText, stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat)).string
+        if !whiteGramSettings.hideMessageTimestamp {
+            dateText = strings.Message_FullDateFormat(dayText, stringForMessageTimestamp(timestamp: timestamp, dateTimeFormat: dateTimeFormat, withSeconds: whiteGramSettings.showSecondsInMessageTimestamp)).string
+        }
     } else if let forwardInfo = message.forwardInfo, forwardInfo.flags.contains(.isImported) {
-        dateText = strings.Message_ImportedDateFormat(dateStringForDay(strings: strings, dateTimeFormat: dateTimeFormat, timestamp: forwardInfo.date), stringForMessageTimestamp(timestamp: forwardInfo.date, dateTimeFormat: dateTimeFormat), dateText).string
+        if !whiteGramSettings.hideMessageTimestamp {
+            dateText = strings.Message_ImportedDateFormat(dateStringForDay(strings: strings, dateTimeFormat: dateTimeFormat, timestamp: forwardInfo.date), stringForMessageTimestamp(timestamp: forwardInfo.date, dateTimeFormat: dateTimeFormat, withSeconds: whiteGramSettings.showSecondsInMessageTimestamp), dateText).string
+        }
     }
     
     var authorTitle: String?
@@ -216,7 +221,11 @@ public func stringForMessageTimestampStatus(accountPeerId: PeerId, message: Mess
         
     } else {
         if let authorTitle = authorTitle, !authorTitle.isEmpty {
-            dateText = "\(authorTitle), \(dateText)"
+            if dateText.isEmpty {
+                dateText = authorTitle
+            } else {
+                dateText = "\(authorTitle), \(dateText)"
+            }
         }
     }
     

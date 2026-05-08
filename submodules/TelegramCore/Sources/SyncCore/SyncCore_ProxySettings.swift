@@ -76,16 +76,18 @@ public struct ProxySettings: Codable, Equatable {
     public var servers: [ProxyServerSettings]
     public var activeServer: ProxyServerSettings?
     public var useForCalls: Bool
+    public var autoConnectOnLaunch: Bool
     
     public static var defaultSettings: ProxySettings {
-        return ProxySettings(enabled: false, servers: [], activeServer: nil, useForCalls: false)
+        return ProxySettings(enabled: false, servers: [], activeServer: nil, useForCalls: false, autoConnectOnLaunch: false)
     }
     
-    public init(enabled: Bool, servers: [ProxyServerSettings], activeServer: ProxyServerSettings?, useForCalls: Bool) {
+    public init(enabled: Bool, servers: [ProxyServerSettings], activeServer: ProxyServerSettings?, useForCalls: Bool, autoConnectOnLaunch: Bool = false) {
         self.enabled = enabled
         self.servers = servers
         self.activeServer = activeServer
         self.useForCalls = useForCalls
+        self.autoConnectOnLaunch = autoConnectOnLaunch
     }
     
     public init(from decoder: Decoder) throws {
@@ -95,6 +97,7 @@ public struct ProxySettings: Codable, Equatable {
         self.servers = try container.decode([ProxyServerSettings].self, forKey: "servers")
         self.activeServer = try container.decodeIfPresent(ProxyServerSettings.self, forKey: "activeServer")
         self.useForCalls = ((try? container.decode(Int32.self, forKey: "useForCalls")) ?? 0) != 0
+        self.autoConnectOnLaunch = ((try? container.decode(Int32.self, forKey: "autoConnectOnLaunch")) ?? 0) != 0
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -104,6 +107,7 @@ public struct ProxySettings: Codable, Equatable {
         try container.encode(self.servers, forKey: "servers")
         try container.encodeIfPresent(self.activeServer, forKey: "activeServer")
         try container.encode((self.useForCalls ? 1 : 0) as Int32, forKey: "useForCalls")
+        try container.encode((self.autoConnectOnLaunch ? 1 : 0) as Int32, forKey: "autoConnectOnLaunch")
     }
     
     public var effectiveActiveServer: ProxyServerSettings? {

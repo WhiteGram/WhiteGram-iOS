@@ -1179,7 +1179,7 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
             guard let strongSelf = self else {
                 return
             }
-            if strongSelf.offerNextChannelToRead, strongSelf.currentOverscrollExpandProgress >= 0.99 {
+            if WhiteGramChatSettings.current.channelSwipeToNext && strongSelf.offerNextChannelToRead, strongSelf.currentOverscrollExpandProgress >= 0.99 {
                 if let nextChannelToRead = strongSelf.nextChannelToRead {
                     strongSelf.freezeOverscrollControl = true
                     strongSelf.openNextChannelToRead?(nextChannelToRead.peer, nextChannelToRead.threadData, nextChannelToRead.location)
@@ -2554,7 +2554,7 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
         if self.freezeOverscrollControl {
             return
         }
-        if let offset = offset, offset < -0.1, self.offerNextChannelToRead, let chatControllerNode = self.controllerInteraction.chatControllerNode() as? ChatControllerNode, chatControllerNode.shouldAllowOverscrollActions {
+        if let offset = offset, offset < -0.1, WhiteGramChatSettings.current.channelSwipeToNext, self.offerNextChannelToRead, let chatControllerNode = self.controllerInteraction.chatControllerNode() as? ChatControllerNode, chatControllerNode.shouldAllowOverscrollActions {
             let overscrollView: ComponentHostView<Empty>
             if let current = self.overscrollView {
                 overscrollView = current

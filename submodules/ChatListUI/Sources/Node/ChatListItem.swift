@@ -6,6 +6,7 @@ import SwiftSignalKit
 import Postbox
 import TelegramCore
 import TelegramPresentationData
+import TelegramUIPreferences
 import ItemListUI
 import PresentationDataUtils
 import AvatarNode
@@ -1921,7 +1922,12 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 }
             }
             
+            let whiteGramChatSettings = WhiteGramChatSettings.effectiveChatListSettings
             var avatarDiameter = min(60.0, floor(item.presentationData.fontSize.baseDisplaySize * 60.0 / 17.0))
+            let compactChatLayout = whiteGramChatSettings.compactChatList
+            if compactChatLayout {
+                avatarDiameter = min(38.0, floor(item.presentationData.fontSize.baseDisplaySize * 38.0 / 17.0))
+            }
             
             if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData, customMessageListData.commandPrefix != nil {
                 avatarDiameter = 40.0
@@ -1945,7 +1951,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             if peer.smallProfileImage != nil && overrideImage == nil {
                 self.avatarNode.setPeerV2(context: item.context, theme: item.presentationData.theme, peer: peer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, clipStyle: avatarClipStyle, synchronousLoad: synchronousLoads, displayDimensions: CGSize(width: avatarDiameter, height: avatarDiameter))
             } else {
-                self.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: peer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, clipStyle: avatarClipStyle, synchronousLoad: synchronousLoads, displayDimensions: CGSize(width: 60.0, height: 60.0))
+                self.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: peer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, clipStyle: avatarClipStyle, synchronousLoad: synchronousLoads, displayDimensions: CGSize(width: avatarDiameter, height: avatarDiameter))
             }
             
             if peer.isPremium && peer.id != item.context.account.peerId {
@@ -2173,11 +2179,14 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
         let currentCustomTextEntities = self.cachedCustomTextEntities
         
         return { item, params, first, last, firstWithHeader, nextIsPinned in
-            let titleFont = Font.medium(floor(item.presentationData.fontSize.itemListBaseFontSize * 16.0 / 17.0))
-            let textFont = Font.regular(floor(item.presentationData.fontSize.itemListBaseFontSize * 15.0 / 17.0))
-            let italicTextFont = Font.italic(floor(item.presentationData.fontSize.itemListBaseFontSize * 15.0 / 17.0))
-            let dateFont = Font.regular(floor(item.presentationData.fontSize.itemListBaseFontSize * 14.0 / 17.0))
-            let badgeFont = Font.with(size: floor(item.presentationData.fontSize.itemListBaseFontSize * 12.0 / 17.0), design: .regular, weight: .semibold, traits: [.monospacedNumbers])
+            let whiteGramChatSettings = WhiteGramChatSettings.effectiveChatListSettings
+            let compactChatLayout = whiteGramChatSettings.compactChatList
+            let compactListScale: CGFloat = compactChatLayout ? 0.88 : 1.0
+            let titleFont = Font.medium(floor(item.presentationData.fontSize.itemListBaseFontSize * 16.0 / 17.0 * compactListScale))
+            let textFont = Font.regular(floor(item.presentationData.fontSize.itemListBaseFontSize * 15.0 / 17.0 * compactListScale))
+            let italicTextFont = Font.italic(floor(item.presentationData.fontSize.itemListBaseFontSize * 15.0 / 17.0 * compactListScale))
+            let dateFont = Font.regular(floor(item.presentationData.fontSize.itemListBaseFontSize * 14.0 / 17.0 * compactListScale))
+            let badgeFont = Font.with(size: floor(item.presentationData.fontSize.itemListBaseFontSize * 12.0 / 17.0 * compactListScale), design: .regular, weight: .semibold, traits: [.monospacedNumbers])
             let avatarBadgeFont = Font.with(size: floor(item.presentationData.fontSize.itemListBaseFontSize * 16.0 / 17.0), design: .regular, weight: .regular, traits: [.monospacedNumbers])
             
             let account = item.context.account
@@ -2439,6 +2448,9 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             
             // if changed, adjust setupItem accordingly
             var avatarDiameter = min(60.0, floor(item.presentationData.fontSize.baseDisplaySize * 60.0 / 17.0))
+            if compactChatLayout {
+                avatarDiameter = min(38.0, floor(item.presentationData.fontSize.baseDisplaySize * 38.0 / 17.0))
+            }
             let avatarLeftInset: CGFloat
             
             if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData, customMessageListData.commandPrefix != nil {
@@ -2450,7 +2462,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 } else if !useChatListLayout {
                     avatarLeftInset = 50.0
                 } else {
-                    avatarLeftInset = 18.0 + avatarDiameter
+                    avatarLeftInset = (compactChatLayout ? 12.0 : 18.0) + avatarDiameter
                 }
             }
             
@@ -3626,7 +3638,10 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 textMaxWidth -= 18.0
             }
             
-            let (textLayout, textApply) = textLayout(TextNodeLayoutArguments(attributedString: textAttributedString, backgroundColor: nil, maximumNumberOfLines: (authorAttributedString == nil && itemTags.isEmpty && forumThread == nil && topForumTopicItems.isEmpty) ? 2 : 1, truncationType: .end, constrainedSize: CGSize(width: textMaxWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: textCutout, insets: UIEdgeInsets(top: 2.0, left: 1.0, bottom: 2.0, right: 1.0)))
+            let canUseTwoLinePreview = authorAttributedString == nil && itemTags.isEmpty && forumThread == nil && topForumTopicItems.isEmpty
+            let forceSingleLinePreview = whiteGramChatSettings.compactChatList
+            let textMaxLines: Int = (!forceSingleLinePreview && canUseTwoLinePreview) ? 2 : 1
+            let (textLayout, textApply) = textLayout(TextNodeLayoutArguments(attributedString: textAttributedString, backgroundColor: nil, maximumNumberOfLines: textMaxLines, truncationType: .end, constrainedSize: CGSize(width: textMaxWidth, height: CGFloat.greatestFiniteMagnitude), alignment: .natural, cutout: textCutout, insets: UIEdgeInsets(top: 2.0, left: 1.0, bottom: 2.0, right: 1.0)))
             
             let maxTitleLines: Int
             switch item.index {
@@ -3808,6 +3823,13 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 peerRevealOptions = []
                 peerLeftRevealOptions = []
             }
+            if !whiteGramChatSettings.chatSwipeOptions {
+                peerRevealOptions = []
+                peerLeftRevealOptions = []
+            } else if !whiteGramChatSettings.chatSwipeDelete {
+                peerRevealOptions.removeAll(where: { $0.key == RevealOptionKey.delete.rawValue })
+                peerLeftRevealOptions.removeAll(where: { $0.key == RevealOptionKey.delete.rawValue })
+            }
             
             let (onlineLayout, onlineApply) = onlineLayout(online, onlineIsVoiceChat)
             var animateContent = false
@@ -3819,6 +3841,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
             
             let titleSpacing: CGFloat = -1.0
             let authorSpacing: CGFloat = -3.0
+            let rawContentTopInset = compactChatLayout ? floor(item.presentationData.fontSize.itemListBaseFontSize * 4.0 / 17.0) : floor(item.presentationData.fontSize.itemListBaseFontSize * 8.0 / 17.0)
             var itemHeight: CGFloat = 8.0 * 2.0 + 1.0
             itemHeight -= 21.0
             if case let .peer(peerData) = item.content, let customMessageListData = peerData.customMessageListData, customMessageListData.commandPrefix != nil {
@@ -3830,8 +3853,16 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 itemHeight += titleSpacing
                 itemHeight += authorSpacing
             }
+            if forceSingleLinePreview && canUseTwoLinePreview {
+                itemHeight = max(58.0, itemHeight - measureLayout.size.height)
+            }
+            if whiteGramChatSettings.compactChatList {
+                let compactTextBlockHeight = titleLayout.size.height + textLayout.size.height
+                let compactTextHeight = rawContentTopInset + compactTextBlockHeight + 5.0
+                itemHeight = max(42.0, compactTextHeight, 38.0 + 4.0)
+            }
                         
-            let rawContentRect = CGRect(origin: CGPoint(x: 2.0, y: layoutOffset + floor(item.presentationData.fontSize.itemListBaseFontSize * 8.0 / 17.0)), size: CGSize(width: rawContentWidth, height: itemHeight - 12.0 - 9.0))
+            let rawContentRect = CGRect(origin: CGPoint(x: 2.0, y: layoutOffset + rawContentTopInset), size: CGSize(width: rawContentWidth, height: itemHeight - 12.0 - 9.0))
             
             let insets = ChatListItemNode.insets(first: first, last: last, firstWithHeader: firstWithHeader)
             var heightOffset: CGFloat = 0.0
@@ -4341,16 +4372,25 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     strongSelf.statusNode.fontSize = item.presentationData.fontSize.itemListBaseFontSize
                     let _ = strongSelf.statusNode.transitionToState(statusState, animated: animateContent)
                     
+                    let compactBadgeLayout = whiteGramChatSettings.compactChatList
+                    func compactBadgeY(_ height: CGFloat) -> CGFloat {
+                        let defaultY = contentRect.maxY - height - (compactBadgeLayout ? 0.0 : 2.0)
+                        if compactBadgeLayout {
+                            return max(defaultY, dateFrame.maxY + 4.0)
+                        }
+                        return defaultY
+                    }
+                    
                     var nextBadgeX: CGFloat = contentRect.maxX
                     if let _ = currentBadgeBackgroundImage {
-                        let badgeFrame = CGRect(x: nextBadgeX - badgeLayout.width, y: contentRect.maxY - badgeLayout.height - 2.0, width: badgeLayout.width, height: badgeLayout.height)
+                        let badgeFrame = CGRect(x: nextBadgeX - badgeLayout.width, y: compactBadgeY(badgeLayout.height), width: badgeLayout.width, height: badgeLayout.height)
                         
                         transition.updateFrame(node: strongSelf.badgeNode, frame: badgeFrame)
                         nextBadgeX -= badgeLayout.width + 6.0
                     }
                     
                     if currentMentionBadgeImage != nil || currentBadgeBackgroundImage != nil {
-                        let badgeFrame = CGRect(x: nextBadgeX - mentionBadgeLayout.width, y: contentRect.maxY - mentionBadgeLayout.height - 2.0, width: mentionBadgeLayout.width, height: mentionBadgeLayout.height)
+                        let badgeFrame = CGRect(x: nextBadgeX - mentionBadgeLayout.width, y: compactBadgeY(mentionBadgeLayout.height), width: mentionBadgeLayout.width, height: mentionBadgeLayout.height)
                         
                         transition.updateFrame(node: strongSelf.mentionBadgeNode, frame: badgeFrame)
                         nextBadgeX -= mentionBadgeLayout.width + 6.0
@@ -4361,7 +4401,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                         strongSelf.pinnedIconNode.isHidden = false
                         
                         let pinnedIconSize = currentPinnedIconImage.size
-                        let pinnedIconFrame = CGRect(x: nextBadgeX - pinnedIconSize.width, y: contentRect.maxY - pinnedIconSize.height - 2.0, width: pinnedIconSize.width, height: pinnedIconSize.height)
+                        let pinnedIconFrame = CGRect(x: nextBadgeX - pinnedIconSize.width, y: compactBadgeY(pinnedIconSize.height), width: pinnedIconSize.width, height: pinnedIconSize.height)
                         
                         strongSelf.pinnedIconNode.frame = pinnedIconFrame
                         nextBadgeX -= pinnedIconSize.width + 6.0
@@ -5070,7 +5110,7 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                     } else if (!nextIsPinned && isPinned) || last {
                         separatorInset = 0.0
                     } else {
-                        separatorInset = editingOffset + leftInset + rawContentRect.origin.x
+                        separatorInset = max(0.0, contentRect.minX - (compactChatLayout ? 1.0 : 0.0))
                     }
                     
                     transition.updateFrame(node: strongSelf.separatorNode, frame: CGRect(origin: CGPoint(x: separatorInset, y: layoutOffset + itemHeight - separatorHeight), size: CGSize(width: params.width - separatorInset, height: separatorHeight)))

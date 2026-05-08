@@ -49,10 +49,18 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
         
         self.backgroundNode = ASDisplayNode()
         self.backgroundNode.isAccessibilityElement = false
-        self.backgroundNode.backgroundColor = presentationData.theme.contextMenu.itemBackgroundColor
+        if #available(iOS 26.0, *) {
+            self.backgroundNode.backgroundColor = .clear
+        } else {
+            self.backgroundNode.backgroundColor = presentationData.theme.contextMenu.itemBackgroundColor
+        }
         self.highlightedBackgroundNode = ASDisplayNode()
         self.highlightedBackgroundNode.isAccessibilityElement = false
-        self.highlightedBackgroundNode.backgroundColor = presentationData.theme.contextMenu.itemHighlightedBackgroundColor
+        if #available(iOS 26.0, *) {
+            self.highlightedBackgroundNode.backgroundColor = presentationData.theme.contextMenu.itemHighlightedBackgroundColor.withMultipliedAlpha(0.72)
+        } else {
+            self.highlightedBackgroundNode.backgroundColor = presentationData.theme.contextMenu.itemHighlightedBackgroundColor
+        }
         self.highlightedBackgroundNode.alpha = 0.0
         
         self.textNode = ImmediateTextNode()
@@ -325,8 +333,13 @@ public final class ContextActionNode: ASDisplayNode, ContextActionNodeProtocol {
     public func updateTheme(presentationData: PresentationData) {
         self.presentationData = presentationData
 
-        self.backgroundNode.backgroundColor = presentationData.theme.contextMenu.itemBackgroundColor
-        self.highlightedBackgroundNode.backgroundColor = presentationData.theme.contextMenu.itemHighlightedBackgroundColor
+        if #available(iOS 26.0, *) {
+            self.backgroundNode.backgroundColor = .clear
+            self.highlightedBackgroundNode.backgroundColor = presentationData.theme.contextMenu.itemHighlightedBackgroundColor.withMultipliedAlpha(0.72)
+        } else {
+            self.backgroundNode.backgroundColor = presentationData.theme.contextMenu.itemBackgroundColor
+            self.highlightedBackgroundNode.backgroundColor = presentationData.theme.contextMenu.itemHighlightedBackgroundColor
+        }
         
         let textColor: UIColor
         switch action.textColor {

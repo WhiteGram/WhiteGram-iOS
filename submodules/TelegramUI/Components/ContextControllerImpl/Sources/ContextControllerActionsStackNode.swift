@@ -1469,34 +1469,24 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
     
     func update(theme: PresentationTheme) {
         self.theme = theme
-        #if compiler(>=6.2)
-        if #available(iOS 26.0, *) {
-            let glassEffectValue: UIGlassEffect
-            if theme.overallDarkAppearance {
-                glassEffectValue = UIGlassEffect(style: .regular)
-                //glassEffectValue.tintColor = UIColor(white: 1.0, alpha: 0.025)
-            } else {
-                glassEffectValue = UIGlassEffect(style: .regular)
-                //glassEffectValue.tintColor = UIColor(white: 1.0, alpha: 0.1)
-            }
+        if let glassEffectValue = makeRuntimeTelegramGlassEffect(isDark: theme.overallDarkAppearance, isInteractive: true) {
             self.glassView.effect = glassEffectValue
         } else {
-            self.glassView.effect = UIBlurEffect(style: theme.overallDarkAppearance ? .dark : .light)
+            if #available(iOS 13.0, *) {
+                self.glassView.effect = UIBlurEffect(style: theme.overallDarkAppearance ? .systemUltraThinMaterialDark : .systemUltraThinMaterialLight)
+            } else {
+                self.glassView.effect = UIBlurEffect(style: theme.overallDarkAppearance ? .dark : .light)
+            }
         }
-        #else
-        self.glassView.effect = UIBlurEffect(style: theme.overallDarkAppearance ? .dark : .light)
-        #endif
+        self.glassView.overrideUserInterfaceStyle = theme.overallDarkAppearance ? .dark : .light
     }
     
     func updateSize(size: CGSize, cornerRadius: CGFloat, transition: ComponentTransition) {
         transition.animateView {
             self.glassView.bounds.size = size
             self.glassView.center = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
-            #if compiler(>=6.2)
-            if #available(iOS 26.0, *) {
-                self.glassView.cornerConfiguration = .corners(radius: UICornerRadius(floatLiteral: cornerRadius))
-            }
-            #endif
+            self.glassView.clipsToBounds = true
+            self.glassView.layer.cornerRadius = cornerRadius
         }
     }
     
@@ -1590,20 +1580,15 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
     }
     
     func updateCornerRadius(duration: Double, keyframes: [CGFloat]) {
-        #if compiler(>=6.2)
-        guard #available(iOS 26.0, *) else {
-            return
-        }
-        
         guard keyframes.count >= 2 else {
             if let last = keyframes.last {
-                self.glassView.cornerConfiguration = .corners(radius: UICornerRadius(floatLiteral: last))
+                self.glassView.layer.cornerRadius = last
             }
             return
         }
         
         // Start value
-        self.glassView.cornerConfiguration = .corners(radius: UICornerRadius(floatLiteral: keyframes[0]))
+        self.glassView.layer.cornerRadius = keyframes[0]
         
         let segmentCount = keyframes.count - 1
         let relativeStep = 1.0 / Double(segmentCount)
@@ -1623,13 +1608,12 @@ private final class LensTransitionContainerEffectViewImpl: UIView, LensTransitio
                         withRelativeStartTime: relativeStartTime,
                         relativeDuration: relativeDuration
                     ) {
-                        self.glassView.cornerConfiguration = .corners(radius: UICornerRadius(floatLiteral: nextValue))
+                        self.glassView.layer.cornerRadius = nextValue
                     }
                 }
             },
             completion: nil
         )
-        #endif
     }
     
     func setTransitionFraction(value: CGFloat, duration: Double) {

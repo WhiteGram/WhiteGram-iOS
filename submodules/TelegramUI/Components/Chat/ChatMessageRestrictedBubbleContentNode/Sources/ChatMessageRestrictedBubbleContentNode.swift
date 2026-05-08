@@ -58,7 +58,7 @@ public class ChatMessageRestrictedBubbleContentNode: ChatMessageBubbleContentNod
                 var dateReplies = 0
                 var starsCount: Int64?
                 var dateReactionsAndPeers = mergedMessageReactionsAndPeers(accountPeerId: item.context.account.peerId, accountPeer: item.associatedData.accountPeer, message: item.message)
-                if item.message.isRestricted(platform: "ios", contentSettings: item.context.currentContentSettings.with { $0 }) {
+                if item.message.isRestricted(platform: "ios", contentSettings: item.context.currentContentSettings.with { $0 }) || whiteGramShouldHideChannelPostReactions(message: item.message) {
                     dateReactionsAndPeers = ([], [])
                 }
                 for attribute in item.message.attributes {

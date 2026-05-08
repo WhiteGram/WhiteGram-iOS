@@ -4,7 +4,7 @@ exports_files(["versions.json"])
 
 setup_sourcekit_bsp(
     name = "setup_sourcekit_bsp",
-    bazel_wrapper = "./build-input/bazel-8.4.2-darwin-arm64",
+    bazel_wrapper = "./build-input/bazel-8.3.1-darwin-x86_64",
     files_to_watch = [
         "Telegram/**/*.swift",
         "Telegram/**/*.h",

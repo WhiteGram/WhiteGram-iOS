@@ -16,6 +16,7 @@ swift_library(
         "//submodules/Postbox",
         "//submodules/TelegramCore",
         "//submodules/TelegramPresentationData",
+        "//submodules/TelegramUIPreferences",
         "//submodules/TextFormat",
         "//submodules/AccountContext",
         "//submodules/MediaResources",

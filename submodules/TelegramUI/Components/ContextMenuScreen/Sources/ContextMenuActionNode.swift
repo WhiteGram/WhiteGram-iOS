@@ -92,7 +92,7 @@ final class ContextMenuActionNode: ASDisplayNode {
         
         super.init()
         
-        if !blurred {
+        if !blurred && ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 26 {
             self.backgroundColor = isDark ? UIColor(rgb: 0x2f2f2f) : nil
         }
         
@@ -111,7 +111,11 @@ final class ContextMenuActionNode: ASDisplayNode {
                 if blurred {
                     self?.backgroundColor = highlighted ? UIColor(rgb: 0xffffff, alpha: 0.5) : .clear
                 } else {
-                    self?.backgroundColor = highlighted ? UIColor(rgb: 0x8c8e8e) : UIColor(rgb: 0x2f2f2f)
+                    if ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 {
+                        self?.backgroundColor = highlighted ? UIColor(rgb: 0xffffff, alpha: 0.16) : .clear
+                    } else {
+                        self?.backgroundColor = highlighted ? UIColor(rgb: 0x8c8e8e) : UIColor(rgb: 0x2f2f2f)
+                    }
                 }
             } else {
                 self?.backgroundColor = highlighted ? UIColor(rgb: 0xDCE3DC) : .clear
@@ -133,7 +137,11 @@ final class ContextMenuActionNode: ASDisplayNode {
     }
     
     @objc private func buttonPressed() {
-        self.backgroundColor = UIColor(white: 0.0, alpha: 0.4)
+        if ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 {
+            self.backgroundColor = UIColor(white: 1.0, alpha: 0.16)
+        } else {
+            self.backgroundColor = UIColor(white: 0.0, alpha: 0.4)
+        }
         
         self.action()
         if let dismiss = self.dismiss {

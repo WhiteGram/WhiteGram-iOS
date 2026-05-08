@@ -34,6 +34,21 @@ import AttachmentUI
 import MinimizedContainer
 import BrowserUI
 
+private var didShowProxyRecommendationOnMainScreen = false
+private var didShowProxyRecommendationOnLoginScreen = false
+
+private func proxyRecommendationConnectionTitle(strings: PresentationStrings) -> String {
+    return strings.baseLanguageCode.lowercased().hasPrefix("ru") ? "Соединение" : "Connection"
+}
+
+private func proxyRecommendationText(strings: PresentationStrings) -> String {
+    if strings.baseLanguageCode.lowercased().hasPrefix("ru") {
+        return "Для лучшей работы приложения лучше использовать прокси."
+    } else {
+        return "For better app performance, it is recommended to use a proxy."
+    }
+}
+
 final class UnauthorizedApplicationContext {
     let sharedContext: SharedAccountContextImpl
     let account: UnauthorizedAccount
@@ -63,6 +78,39 @@ final class UnauthorizedApplicationContext {
         }
         
         self.isReady.set(self.rootController.ready.get())
+        
+        Queue.mainQueue().after(2.0, { [weak self] in
+            guard let strongSelf = self, !didShowProxyRecommendationOnLoginScreen else {
+                return
+            }
+            let _ = (strongSelf.sharedContext.accountManager.sharedData(keys: [SharedDataKeys.proxySettings])
+            |> take(1)
+            |> deliverOnMainQueue).start(next: { [weak self] sharedData in
+                guard let strongSelf = self, !didShowProxyRecommendationOnLoginScreen else {
+                    return
+                }
+                let proxySettings = sharedData.entries[SharedDataKeys.proxySettings]?.get(ProxySettings.self) ?? ProxySettings.defaultSettings
+                guard !proxySettings.enabled else {
+                    return
+                }
+                guard strongSelf.rootController.isViewLoaded, strongSelf.rootController.view.window != nil, let presentingController = strongSelf.rootController.viewControllers.last as? ViewController else {
+                    return
+                }
+                didShowProxyRecommendationOnLoginScreen = true
+                let controller = textAlertController(sharedContext: strongSelf.sharedContext, title: nil, text: proxyRecommendationText(strings: presentationData.strings), actions: [
+                    TextAlertAction(type: .genericAction, title: proxyRecommendationConnectionTitle(strings: presentationData.strings), action: { [weak self] in
+                        Queue.mainQueue().after(0.25, {
+                            guard let strongSelf = self, let presentingController = strongSelf.rootController.viewControllers.last as? ViewController else {
+                                return
+                            }
+                            presentingController.present(strongSelf.sharedContext.makeProxySettingsController(sharedContext: strongSelf.sharedContext, account: strongSelf.account), in: .window(.root), with: ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
+                        })
+                    }),
+                    TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})
+                ])
+                presentingController.present(controller, in: .window(.root))
+            })
+        })
         
         account.shouldBeServiceTaskMaster.set(sharedContext.applicationBindings.applicationInForeground |> map { value -> AccountServiceTaskMasterMode in
             if value {
@@ -289,6 +337,40 @@ final class AuthorizedApplicationContext {
                 }
             }
         }))
+        
+        Queue.mainQueue().after(2.0, { [weak self] in
+            guard let strongSelf = self, !didShowProxyRecommendationOnMainScreen else {
+                return
+            }
+            let _ = (strongSelf.context.sharedContext.accountManager.sharedData(keys: [SharedDataKeys.proxySettings])
+            |> take(1)
+            |> deliverOnMainQueue).start(next: { [weak self] sharedData in
+                guard let strongSelf = self, !didShowProxyRecommendationOnMainScreen else {
+                    return
+                }
+                let proxySettings = sharedData.entries[SharedDataKeys.proxySettings]?.get(ProxySettings.self) ?? ProxySettings.defaultSettings
+                guard !proxySettings.enabled else {
+                    return
+                }
+                guard strongSelf.rootController.isViewLoaded, strongSelf.rootController.view.window != nil, let presentingController = strongSelf.rootController.viewControllers.last as? ViewController else {
+                    return
+                }
+                didShowProxyRecommendationOnMainScreen = true
+                let presentationData = strongSelf.context.sharedContext.currentPresentationData.with { $0 }
+                let controller = textAlertController(context: strongSelf.context, title: nil, text: proxyRecommendationText(strings: presentationData.strings), actions: [
+                    TextAlertAction(type: .genericAction, title: proxyRecommendationConnectionTitle(strings: presentationData.strings), action: { [weak self] in
+                        Queue.mainQueue().after(0.25, {
+                            guard let strongSelf = self, let presentingController = strongSelf.rootController.viewControllers.last as? ViewController else {
+                                return
+                            }
+                            presentingController.present(proxySettingsController(context: strongSelf.context), in: .window(.root), with: ViewControllerPresentationArguments(presentationAnimation: .modalSheet))
+                        })
+                    }),
+                    TextAlertAction(type: .defaultAction, title: presentationData.strings.Common_OK, action: {})
+                ])
+                presentingController.present(controller, in: .window(.root))
+            })
+        })
 
         let engine = context.engine
         self.notificationMessagesDisposable.set((context.account.stateManager.notificationMessages

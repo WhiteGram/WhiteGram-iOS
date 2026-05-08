@@ -13,6 +13,21 @@ import ReactionImageComponent
 import AnimationCache
 import MultiAnimationRenderer
 import TelegramStringFormatting
+import TelegramUIPreferences
+
+public func whiteGramShouldHideChannelPostReactions(message: Message) -> Bool {
+    if let channel = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = channel.info, !WhiteGramChatSettings.current.channelPostReactions {
+        return true
+    }
+    return false
+}
+
+public func whiteGramShouldUseWideChannelPostLayout(message: Message) -> Bool {
+    if let channel = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = channel.info, WhiteGramChatSettings.current.wideChannelPosts {
+        return true
+    }
+    return false
+}
 
 private func maybeAddRotationAnimation(_ layer: CALayer, duration: Double) {
     if let _ = layer.animation(forKey: "clockFrameAnimation") {

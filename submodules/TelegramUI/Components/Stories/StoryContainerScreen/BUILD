@@ -61,6 +61,7 @@ swift_library(
         "//submodules/PresentationDataUtils",
         "//submodules/UrlEscaping",
         "//submodules/OverlayStatusController",
+        "//submodules/AlertUI",
         "//submodules/Utils/VolumeButtons",
         "//submodules/TelegramUI/Components/PeerReportScreen",
         "//submodules/MediaResources",

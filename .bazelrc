@@ -1,4 +1,6 @@
 build --action_env=ZERO_AR_DATE=1
+build --action_env=TMPDIR=/private/tmp
+build --repo_env=TMPDIR=/private/tmp
 
 build --apple_platform_type=ios
 build --enable_platform_specific_config

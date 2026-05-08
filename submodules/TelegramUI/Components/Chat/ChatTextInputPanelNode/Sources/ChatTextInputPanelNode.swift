@@ -8,6 +8,7 @@ import Postbox
 import TelegramCore
 import MobileCoreServices
 import TelegramPresentationData
+import TelegramUIPreferences
 import TextFormat
 import AccountContext
 import TouchDownGesture
@@ -301,6 +302,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
     private var accessoryItemButtons: [(ChatTextInputAccessoryItem, AccessoryItemIconButton)] = []
     
     private var validLayout: (CGFloat, CGFloat, CGFloat, CGFloat, UIEdgeInsets, CGFloat, CGFloat, LayoutMetrics, Bool, Bool)?
+    private var whiteGramChatSettingsObserver: NSObjectProtocol?
     private var leftMenuInset: CGFloat = 0.0
     private var rightSlowModeInset: CGFloat = 0.0
     private var currentTextInputBackgroundWidthOffset: CGFloat = 0.0
@@ -728,6 +730,13 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         
         super.init()
         
+        self.whiteGramChatSettingsObserver = NotificationCenter.default.addObserver(forName: WhiteGramChatSettings.updatedNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self, let presentationInterfaceState = self.presentationInterfaceState, let (width, leftInset, rightInset, bottomInset, additionalSideInsets, maxHeight, maxOverlayHeight, metrics, isSecondary, isMediaInputExpanded) = self.validLayout else {
+                return
+            }
+            let _ = self.updateLayout(width: width, leftInset: leftInset, rightInset: rightInset, bottomInset: bottomInset, additionalSideInsets: additionalSideInsets, maxHeight: maxHeight, maxOverlayHeight: maxOverlayHeight, isSecondary: isSecondary, transition: .animated(duration: 0.25, curve: .easeInOut), interfaceState: presentationInterfaceState, metrics: metrics, isMediaInputExpanded: isMediaInputExpanded)
+        }
+
         self.view.addSubview(self.glassBackgroundContainer)
         
         self.slowModeButton.requestUpdate = { [weak self] in
@@ -844,6 +853,9 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         
         self.mediaActionButtons.micButton.beginRecording = { [weak self] in
             if let strongSelf = self, let presentationInterfaceState = strongSelf.presentationInterfaceState, let interfaceInteraction = strongSelf.interfaceInteraction {
+                guard WhiteGramChatSettings.current.voiceMessageButton else {
+                    return
+                }
                 let isVideo: Bool
                 switch presentationInterfaceState.interfaceState.mediaRecordingMode {
                     case .audio:
@@ -1025,6 +1037,9 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         self.statusDisposable.dispose()
         self.tooltipController?.dismiss()
         self.currentEmojiSuggestion?.disposable.dispose()
+        if let whiteGramChatSettingsObserver = self.whiteGramChatSettingsObserver {
+            NotificationCenter.default.removeObserver(whiteGramChatSettingsObserver)
+        }
     }
     
     override public func didLoad() {
@@ -2311,6 +2326,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
             sendActionButtonsSize = self.sendActionButtons.updateLayout(size: CGSize(width: 40.0, height: minimalHeight), isMediaInputExpanded: isMediaInputExpanded, showTitle: showTitle, currentMessageEffectId: presentationInterfaceState.interfaceState.sendMessageEffect, transition: transition, interfaceState: presentationInterfaceState)
             mediaActionButtonsSize = self.mediaActionButtons.updateLayout(size: CGSize(width: 40.0, height: minimalHeight), isMediaInputExpanded: isMediaInputExpanded, showTitle: false, currentMessageEffectId: presentationInterfaceState.interfaceState.sendMessageEffect, transition: transition, interfaceState: presentationInterfaceState)
         }
+        let voiceMessageButtonEnabled = WhiteGramChatSettings.current.voiceMessageButton
         
         var starReactionButtonSize: CGSize?
         if let customRightAction = self.customRightAction, case let .stars(count, isFilled, action, longPressAction) = customRightAction {
@@ -2376,7 +2392,7 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
             }
         }
         
-        var effectiveActionButtonsSize = starReactionButtonSize ?? mediaActionButtonsSize
+        var effectiveActionButtonsSize = starReactionButtonSize ?? (voiceMessageButtonEnabled ? mediaActionButtonsSize : CGSize())
         if let liveMicrophoneButtonSize {
             effectiveActionButtonsSize.width += 6.0 + liveMicrophoneButtonSize.width
         }
@@ -3400,7 +3416,9 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         }
                 
         let mediaInputDisabled: Bool
-        if !interfaceState.voiceMessagesAvailable {
+        if !WhiteGramChatSettings.current.voiceMessageButton {
+            mediaInputDisabled = true
+        } else if !interfaceState.voiceMessagesAvailable {
             mediaInputDisabled = true
         } else if interfaceState.hasActiveGroupCall {
             mediaInputDisabled = true
@@ -4603,6 +4621,9 @@ public class ChatTextInputPanelNode: ChatInputPanelNode, ASEditableTextNodeDeleg
         }
         
         if let interfaceState = self.presentationInterfaceState {
+            if !WhiteGramChatSettings.current.voiceMessageButton {
+                hideMicButton = true
+            }
             if case let .customChatContents(customChatContents) = interfaceState.subject {
                 switch customChatContents.kind {
                 case .hashTagSearch:

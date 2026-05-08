@@ -444,6 +444,13 @@ private func contentNodeMessagesAndClassesForItem(_ item: ChatMessageItem) -> ([
     }
     
     let firstMessage = item.content.firstMessage
+    let hideChannelPostReactions: Bool
+    if let channel = firstMessage.peers[firstMessage.id.peerId] as? TelegramChannel, case .broadcast = channel.info, !WhiteGramChatSettings.current.channelPostReactions {
+        hideChannelPostReactions = true
+        needReactions = false
+    } else {
+        hideChannelPostReactions = false
+    }
     
     let reactionsAreInline: Bool
     reactionsAreInline = shouldDisplayInlineDateReactions(message: firstMessage, isPremium: item.associatedData.isPremium, forceInline: item.associatedData.forceInlineReactions)
@@ -457,7 +464,7 @@ private func contentNodeMessagesAndClassesForItem(_ item: ChatMessageItem) -> ([
         }
     }
     
-    if !reactionsAreInline && !hideAllAdditionalInfo, let reactionsAttribute = mergedMessageReactions(attributes: firstMessage.attributes, isTags: firstMessage.areReactionsTags(accountPeerId: item.context.account.peerId)), !reactionsAttribute.reactions.isEmpty {
+    if !hideChannelPostReactions && !reactionsAreInline && !hideAllAdditionalInfo, let reactionsAttribute = mergedMessageReactions(attributes: firstMessage.attributes, isTags: firstMessage.areReactionsTags(accountPeerId: item.context.account.peerId)), !reactionsAttribute.reactions.isEmpty {
         if result.last?.1 == ChatMessageTextBubbleContentNode.self {
         } else {
             if result.last?.1 == ChatMessagePollBubbleContentNode.self ||
@@ -1885,6 +1892,14 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         if let subject = item.associatedData.subject, case .messageOptions = subject {
             needsShareButton = false
         }
+
+        let forceWideChannelPost: Bool
+        if whiteGramShouldUseWideChannelPostLayout(message: firstMessage) {
+            allowFullWidth = true
+            forceWideChannelPost = true
+        } else {
+            forceWideChannelPost = false
+        }
                         
         var tmpWidth: CGFloat
         if allowFullWidth {
@@ -1913,6 +1928,15 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         var maximumContentWidth = floor(tmpWidth - layoutConstants.bubble.edgeInset * 3.0 - layoutConstants.bubble.contentInsets.left - layoutConstants.bubble.contentInsets.right - avatarInset)
         if (needsShareButton && !isSidePanelOpen) {
             maximumContentWidth -= 10.0
+        }
+        let forceWideChannelPostBubbleWidth: CGFloat?
+        if forceWideChannelPost {
+            let horizontalEdgeInset = params.leftInset + layoutConstants.bubble.edgeInset + avatarInset
+            let wideBubbleWidth = max(1.0, params.width - params.rightInset - horizontalEdgeInset * 2.0 - deliveryFailedInset)
+            maximumContentWidth = max(0.0, wideBubbleWidth - layoutConstants.bubble.contentInsets.left - layoutConstants.bubble.contentInsets.right)
+            forceWideChannelPostBubbleWidth = wideBubbleWidth
+        } else {
+            forceWideChannelPostBubbleWidth = nil
         }
         
         var hasInstantVideo = false
@@ -2437,7 +2461,13 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         var mosaicStatusSizeAndApply: (CGSize, (ListViewItemUpdateAnimation) -> ChatMessageDateAndStatusNode)?
         
         if let mosaicRange = mosaicRange {
-            let maxSize = layoutConstants.image.maxDimensions.fittedToWidthOrSmaller(maximumContentWidth - layoutConstants.image.bubbleInsets.left - layoutConstants.image.bubbleInsets.right)
+            let mosaicAvailableWidth = max(1.0, maximumContentWidth - layoutConstants.image.bubbleInsets.left - layoutConstants.image.bubbleInsets.right)
+            let maxSize: CGSize
+            if forceWideChannelPost {
+                maxSize = CGSize(width: mosaicAvailableWidth, height: layoutConstants.image.maxDimensions.height)
+            } else {
+                maxSize = layoutConstants.image.maxDimensions.fittedToWidthOrSmaller(mosaicAvailableWidth)
+            }
             let (innerFramesAndPositions, innerSize) = chatMessageBubbleMosaicLayout(maxSize: maxSize, itemSizes: contentPropertiesAndLayouts[mosaicRange].map { item in
                 guard let size = item.0, size.width > 0.0, size.height > 0 else {
                     return CGSize(width: 256.0, height: 256.0)
@@ -2472,7 +2502,7 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
                 var dateReplies = 0
                 var starsCount: Int64?
                 var dateReactionsAndPeers = mergedMessageReactionsAndPeers(accountPeerId: item.context.account.peerId, accountPeer: item.associatedData.accountPeer, message: message)
-                if message.isRestricted(platform: "ios", contentSettings: item.context.currentContentSettings.with { $0 }) {
+                if message.isRestricted(platform: "ios", contentSettings: item.context.currentContentSettings.with { $0 }) || whiteGramShouldHideChannelPostReactions(message: message) {
                     dateReactionsAndPeers = ([], [])
                 }
                 for attribute in message.attributes {
@@ -3520,7 +3550,11 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
             minimalContentSize = layoutConstants.bubble.minimumSize
         }
         let calculatedBubbleHeight = headerSize.height + contentSize.height + layoutConstants.bubble.contentInsets.top + layoutConstants.bubble.contentInsets.bottom
-        let layoutBubbleSize = CGSize(width: max(contentSize.width, headerSize.width) + layoutConstants.bubble.contentInsets.left + layoutConstants.bubble.contentInsets.right, height: max(minimalContentSize.height, calculatedBubbleHeight - detachedContentNodesHeight))
+        var layoutBubbleWidth = max(contentSize.width, headerSize.width) + layoutConstants.bubble.contentInsets.left + layoutConstants.bubble.contentInsets.right
+        if let forceWideChannelPostBubbleWidth {
+            layoutBubbleWidth = max(layoutBubbleWidth, forceWideChannelPostBubbleWidth)
+        }
+        let layoutBubbleSize = CGSize(width: layoutBubbleWidth, height: max(minimalContentSize.height, calculatedBubbleHeight - detachedContentNodesHeight))
         var contentVerticalOffset: CGFloat = 0.0
         if minimalContentSize.height > calculatedBubbleHeight + 2.0 {
             contentVerticalOffset = floorToScreenPixels((minimalContentSize.height - calculatedBubbleHeight) / 2.0)
@@ -5454,6 +5488,14 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         switch recognizer.state {
         case .ended:
             if let (gesture, location) = recognizer.lastRecognizedGestureAndLocation, let item = self.item {
+                if case .doubleTap = gesture, self.performWhiteGramChannelPostDoubleTapAction(item: item, location: location) {
+                    self.mainContainerNode.cancelGesture()
+                    return
+                }
+                if case .doubleTap = gesture, self.performWhiteGramPersonalDoubleTapAction(item: item, location: location) {
+                    self.mainContainerNode.cancelGesture()
+                    return
+                }
                 if let action = self.gestureRecognized(gesture: gesture, location: location, recognizer: nil) {
                     if case .doubleTap = gesture {
                         self.mainContainerNode.cancelGesture()
@@ -5483,6 +5525,92 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
         }
     }
     
+    private func whiteGramPersonalDoubleTapTarget(item: ChatMessageItem, location: CGPoint) -> (message: Message, subFrame: CGRect) {
+        var message = item.message
+        var subFrame = self.backgroundNode.frame.contains(CGPoint(x: self.frame.width - location.x, y: location.y)) ? self.backgroundNode.frame : self.bounds
+        if case .group = item.content {
+            for contentNode in self.contentNodes {
+                let convertedNodeFrame = contentNode.view.convert(contentNode.bounds, to: self.view).insetBy(dx: 0.0, dy: -10.0)
+                if convertedNodeFrame.contains(location), let contentMessage = contentNode.item?.message {
+                    message = contentMessage
+                    subFrame = contentNode.frame.insetBy(dx: 0.0, dy: -4.0)
+                    break
+                }
+            }
+        }
+        return (message, subFrame)
+    }
+
+    private func isWhiteGramChannelPost(_ message: Message) -> Bool {
+        if let channel = message.peers[message.id.peerId] as? TelegramChannel, case .broadcast = channel.info {
+            return true
+        }
+        return false
+    }
+
+    private func performWhiteGramChannelPostDoubleTapAction(item: ChatMessageItem, location: CGPoint) -> Bool {
+        let target = self.whiteGramPersonalDoubleTapTarget(item: item, location: location)
+        guard self.isWhiteGramChannelPost(target.message) else {
+            return false
+        }
+        let settings = WhiteGramChatSettings.current
+        switch settings.channelPostDoubleTapAction {
+        case .savedMessages:
+            if !item.controllerInteraction.performPersonalChatDoubleTapAction(target.message, .savedMessages) {
+                item.controllerInteraction.openMessageContextMenu(target.message, false, self, target.subFrame, nil, nil)
+            }
+        case .reaction:
+            if canAddMessageReactions(message: target.message) {
+                item.controllerInteraction.updateMessageReaction(target.message, .default, false, nil)
+            } else {
+                item.controllerInteraction.openMessageContextMenu(target.message, false, self, target.subFrame, nil, nil)
+            }
+        case .forward:
+            item.controllerInteraction.openMessageShareMenu(target.message.id)
+        case .reply:
+            item.controllerInteraction.setupReply(target.message.id)
+        case .select:
+            item.controllerInteraction.toggleMessagesSelection([target.message.id], true)
+        case .copy:
+            item.controllerInteraction.copyText(target.message.text)
+        case .contextMenu:
+            item.controllerInteraction.openMessageContextMenu(target.message, false, self, target.subFrame, nil, nil)
+        }
+        return true
+    }
+
+    private func performWhiteGramPersonalDoubleTapAction(item: ChatMessageItem, location: CGPoint) -> Bool {
+        let chatPeerId = item.chatLocation.peerId ?? item.message.id.peerId
+        guard chatPeerId.namespace == Namespaces.Peer.CloudUser || chatPeerId.namespace == Namespaces.Peer.SecretChat else {
+            return false
+        }
+        let target = self.whiteGramPersonalDoubleTapTarget(item: item, location: location)
+        let settings = WhiteGramChatSettings.current
+        switch settings.personalChatDoubleTapAction {
+        case .savedMessages, .edit, .pin:
+            if !item.controllerInteraction.performPersonalChatDoubleTapAction(target.message, settings.personalChatDoubleTapAction) {
+                item.controllerInteraction.openMessageContextMenu(target.message, false, self, target.subFrame, nil, nil)
+            }
+        case .reaction:
+            if canAddMessageReactions(message: target.message) {
+                item.controllerInteraction.updateMessageReaction(target.message, .default, false, nil)
+            } else {
+                item.controllerInteraction.openMessageContextMenu(target.message, false, self, target.subFrame, nil, nil)
+            }
+        case .forward:
+            item.controllerInteraction.openMessageShareMenu(target.message.id)
+        case .reply:
+            item.controllerInteraction.setupReply(target.message.id)
+        case .select:
+            item.controllerInteraction.toggleMessagesSelection([target.message.id], true)
+        case .copy:
+            item.controllerInteraction.copyText(target.message.text)
+        case .contextMenu:
+            item.controllerInteraction.openMessageContextMenu(target.message, false, self, target.subFrame, nil, nil)
+        }
+        return true
+    }
+
     private func gestureRecognized(gesture: TapLongTapOrDoubleTapGesture, location: CGPoint, recognizer: TapLongTapOrDoubleTapGestureRecognizer?) -> InternalBubbleTapAction? {
         var mediaMessage: Message?
         var forceOpen = false
@@ -6728,6 +6856,9 @@ public class ChatMessageBubbleItemNode: ChatMessageItemView, ChatMessagePreviewI
     
     private var playedSwipeToReplyHaptic = false
     @objc private func swipeToReplyGesture(_ recognizer: ChatSwipeToReplyRecognizer) {
+        guard WhiteGramChatSettings.current.swipeToReply else {
+            return
+        }
         var offset: CGFloat = 0.0
         var leftOffset: CGFloat = 0.0
         var swipeOffset: CGFloat = 45.0

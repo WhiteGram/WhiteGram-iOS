@@ -7,10 +7,61 @@ private let automaticProxyBootstrapSources: [String] = [
     "https://raw.githubusercontent.com/SoliSpirit/mtproto/master/all_proxies.txt"
 ]
 
-private let automaticProxyRefreshInterval: Double = 30.0 * 60.0
-private let automaticProxyActivationDelay: Double = 8.0
-private let automaticProxyProbeServerLimit = 120
+private let automaticProxyRefreshInterval: Double = 10.0 * 60.0
+private let automaticProxyActivationDelay: Double = 4.0
+private let automaticProxyBestSelectionDelay: Double = 0.5
+private let automaticProxyConnectionFallbackDelay: Double = 12.0
+private let automaticProxyProbeServerLimit = 40
 private let automaticProxyStoredServerLimit = 40
+
+private func automaticProxyHostIsIPAddress(_ host: String) -> Bool {
+    let normalizedHost = host.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+    let ipv4Parts = normalizedHost.split(separator: ".", omittingEmptySubsequences: false)
+    if ipv4Parts.count == 4 {
+        var isIPv4 = true
+        for part in ipv4Parts {
+            guard let value = Int(part), value >= 0 && value <= 255, String(value) == String(part) else {
+                isIPv4 = false
+                break
+            }
+        }
+        if isIPv4 {
+            return true
+        }
+    }
+    
+    if normalizedHost.contains(":") {
+        let allowed = CharacterSet(charactersIn: "0123456789abcdefABCDEF:")
+        return !normalizedHost.isEmpty && normalizedHost.rangeOfCharacter(from: allowed.inverted) == nil
+    }
+    
+    return false
+}
+
+private func automaticProxyHostIsDomainName(_ host: String) -> Bool {
+    let normalizedHost = host.trimmingCharacters(in: CharacterSet(charactersIn: "[]")).trimmingCharacters(in: CharacterSet(charactersIn: "."))
+    if normalizedHost.isEmpty || automaticProxyHostIsIPAddress(normalizedHost) {
+        return false
+    }
+    
+    let allowedCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.")
+    if normalizedHost.rangeOfCharacter(from: allowedCharacters.inverted) != nil {
+        return false
+    }
+    
+    let labels = normalizedHost.split(separator: ".", omittingEmptySubsequences: false)
+    if labels.count < 2 {
+        return false
+    }
+    
+    for label in labels {
+        if label.isEmpty || label.count > 63 || label.hasPrefix("-") || label.hasSuffix("-") {
+            return false
+        }
+    }
+    
+    return true
+}
 
 private func automaticProxyFetchSource(_ source: String) -> Signal<String, NoError> {
     return Signal { subscriber in
@@ -71,7 +122,7 @@ private func automaticProxyParseServers(_ text: String) -> [ProxyServerSettings]
             }
         }
         
-        if let host = host, !host.isEmpty, let port = port, port > 0, let secret = secret {
+        if let host = host, !host.isEmpty, automaticProxyHostIsDomainName(host), let port = port, port > 0, port <= 65535, let secret = secret {
             let server = ProxyServerSettings(host: host, port: port, connection: .mtp(secret: secret))
             if !seen.contains(server) {
                 seen.insert(server)
@@ -136,12 +187,15 @@ private final class AutomaticProxyBootstrapContext {
     private var connectionStatusDisposable: Disposable?
     private var refreshTimer: SwiftSignalKit.Timer?
     private var activationTimer: SwiftSignalKit.Timer?
+    private var bestSelectionTimer: SwiftSignalKit.Timer?
+    private var connectionFallbackTimer: SwiftSignalKit.Timer?
     
     private var currentSettings: ProxySettings = .defaultSettings
     private var currentStatuses: [ProxyServerSettings: ProxyServerStatus] = [:]
     private var currentCandidates: [ProxyServerSettings] = []
     private var currentFetchedServers: [ProxyServerSettings] = []
     private var lastStoredAvailableServers: [ProxyServerSettings] = []
+    private var lastStoredFetchedServers: [ProxyServerSettings] = []
     private var excludedActiveServer: ProxyServerSettings?
     private var proxyNeeded = false
     
@@ -176,8 +230,12 @@ private final class AutomaticProxyBootstrapContext {
             }
             strongSelf.currentStatuses = statuses
             strongSelf.storeAvailableFetchedServersIfNeeded()
-            if strongSelf.proxyNeeded {
-                strongSelf.activateBestProxyIfNeeded()
+            if strongSelf.currentSettings.enabled && (strongSelf.currentSettings.autoConnectOnLaunch || strongSelf.proxyNeeded) {
+                if let activeServer = strongSelf.currentSettings.activeServer, case .notAvailable? = statuses[activeServer] {
+                    strongSelf.excludedActiveServer = activeServer
+                    strongSelf.proxyNeeded = true
+                }
+                strongSelf.scheduleBestProxySelection()
             }
         })
         
@@ -200,6 +258,8 @@ private final class AutomaticProxyBootstrapContext {
         self.connectionStatusDisposable?.dispose()
         self.refreshTimer?.invalidate()
         self.activationTimer?.invalidate()
+        self.bestSelectionTimer?.invalidate()
+        self.connectionFallbackTimer?.invalidate()
     }
     
     private func refreshProxyList() {
@@ -229,7 +289,26 @@ private final class AutomaticProxyBootstrapContext {
                 return
             }
             strongSelf.fetchedServers.set(.single(servers))
+            strongSelf.storeFetchedServersIfNeeded(servers)
         })
+    }
+    
+    private func storeFetchedServersIfNeeded(_ servers: [ProxyServerSettings]) {
+        let fetchedServers = Array(servers.prefix(automaticProxyStoredServerLimit))
+        if fetchedServers.isEmpty || fetchedServers == self.lastStoredFetchedServers {
+            return
+        }
+        self.lastStoredFetchedServers = fetchedServers
+        
+        let _ = (updateProxySettingsInteractively(accountManager: self.accountManager, { settings in
+            var settings = settings
+            settings.servers = automaticProxyMergedServers(existing: fetchedServers, fetched: settings.servers.filter { !automaticProxyHostIsIPAddress($0.host) })
+            if let activeServer = settings.activeServer, automaticProxyHostIsIPAddress(activeServer.host) {
+                settings.activeServer = nil
+                settings.enabled = false
+            }
+            return settings
+        })).start()
     }
     
     private func storeAvailableFetchedServersIfNeeded() {
@@ -242,41 +321,28 @@ private final class AutomaticProxyBootstrapContext {
             }
         }
         
-        var hasStoredUnavailableFetchedServer = false
-        for server in self.currentSettings.servers {
-            if fetchedSet.contains(server), case .notAvailable? = statuses[server] {
-                hasStoredUnavailableFetchedServer = true
-                break
-            }
-        }
-        
-        guard !autoAvailableServers.isEmpty || hasStoredUnavailableFetchedServer else {
+        guard !autoAvailableServers.isEmpty else {
             return
         }
         
-        if autoAvailableServers == self.lastStoredAvailableServers && !hasStoredUnavailableFetchedServer {
+        if autoAvailableServers == self.lastStoredAvailableServers {
             return
         }
         self.lastStoredAvailableServers = autoAvailableServers
         
         let _ = (updateProxySettingsInteractively(accountManager: self.accountManager, { settings in
             var settings = settings
-            
-            let availableSet = Set(autoAvailableServers)
-            var preservedServers: [ProxyServerSettings] = []
-            var seen = Set<ProxyServerSettings>()
-            
-            for server in settings.servers {
-                if fetchedSet.contains(server), case .notAvailable? = statuses[server], !availableSet.contains(server) {
-                    continue
+            let existingServers = settings.servers.filter { server in
+                if fetchedSet.contains(server), case .notAvailable? = statuses[server] {
+                    return false
                 }
-                if !seen.contains(server) {
-                    seen.insert(server)
-                    preservedServers.append(server)
-                }
+                return true
             }
-            
-            settings.servers = automaticProxyMergedServers(existing: autoAvailableServers, fetched: preservedServers)
+            let mergedServers = automaticProxyMergedServers(existing: autoAvailableServers, fetched: existingServers)
+            settings.servers = mergedServers
+            if settings.enabled && settings.autoConnectOnLaunch {
+                settings.activeServer = automaticProxySortedAvailableServers(candidates: mergedServers, statuses: statuses).first
+            }
             return settings
         })).start()
     }
@@ -288,15 +354,23 @@ private final class AutomaticProxyBootstrapContext {
             self.excludedActiveServer = nil
             self.activationTimer?.invalidate()
             self.activationTimer = nil
+            self.connectionFallbackTimer?.invalidate()
+            self.connectionFallbackTimer = nil
         case let .connecting(proxyAddress, proxyHasConnectionIssues):
-            if proxyAddress == nil || proxyHasConnectionIssues {
-                if proxyHasConnectionIssues {
-                    self.excludedActiveServer = self.currentSettings.activeServer
+            if proxyHasConnectionIssues {
+                self.excludedActiveServer = self.currentSettings.activeServer
+            }
+            if self.currentSettings.enabled && self.currentSettings.autoConnectOnLaunch {
+                if proxyAddress == nil || proxyHasConnectionIssues {
+                    self.scheduleProxyActivation()
+                } else {
+                    self.scheduleConnectionFallback()
                 }
-                self.scheduleProxyActivation()
             }
         case .waitingForNetwork, .updating:
-            self.scheduleProxyActivation()
+            if self.currentSettings.enabled && self.currentSettings.autoConnectOnLaunch {
+                self.scheduleProxyActivation()
+            }
         }
     }
     
@@ -310,12 +384,51 @@ private final class AutomaticProxyBootstrapContext {
             }
             strongSelf.activationTimer = nil
             strongSelf.proxyNeeded = true
-            strongSelf.activateBestProxyIfNeeded()
+            strongSelf.scheduleBestProxySelection()
         }, queue: self.queue)
         self.activationTimer?.start()
     }
     
+    private func scheduleConnectionFallback() {
+        if self.connectionFallbackTimer != nil {
+            return
+        }
+        let activeServer = self.currentSettings.activeServer
+        self.connectionFallbackTimer = SwiftSignalKit.Timer(timeout: automaticProxyConnectionFallbackDelay, repeat: false, completion: { [weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            strongSelf.connectionFallbackTimer = nil
+            guard strongSelf.currentSettings.enabled && strongSelf.currentSettings.autoConnectOnLaunch else {
+                return
+            }
+            if let activeServer = activeServer, strongSelf.currentSettings.activeServer == activeServer {
+                strongSelf.excludedActiveServer = activeServer
+            }
+            strongSelf.proxyNeeded = true
+            strongSelf.scheduleBestProxySelection()
+        }, queue: self.queue)
+        self.connectionFallbackTimer?.start()
+    }
+    
+    private func scheduleBestProxySelection() {
+        self.bestSelectionTimer?.invalidate()
+        self.bestSelectionTimer = SwiftSignalKit.Timer(timeout: automaticProxyBestSelectionDelay, repeat: false, completion: { [weak self] in
+            guard let strongSelf = self else {
+                return
+            }
+            strongSelf.bestSelectionTimer = nil
+            if strongSelf.currentSettings.enabled && (strongSelf.currentSettings.autoConnectOnLaunch || strongSelf.proxyNeeded) {
+                strongSelf.activateBestProxyIfNeeded()
+            }
+        }, queue: self.queue)
+        self.bestSelectionTimer?.start()
+    }
+    
     private func activateBestProxyIfNeeded() {
+        guard self.currentSettings.enabled else {
+            return
+        }
         guard let bestServer = self.bestAvailableServer() else {
             self.refreshProxyList()
             return
@@ -326,15 +439,17 @@ private final class AutomaticProxyBootstrapContext {
         
         let _ = (updateProxySettingsInteractively(accountManager: self.accountManager, { settings in
             var settings = settings
+            guard settings.enabled else {
+                return settings
+            }
             settings.servers = automaticProxyMergedServers(existing: settings.servers, fetched: [bestServer])
             settings.activeServer = bestServer
-            settings.enabled = true
             return settings
         })).start()
     }
     
     private func bestAvailableServer() -> ProxyServerSettings? {
-        return automaticProxySortedAvailableServers(candidates: self.currentCandidates, statuses: self.currentStatuses, excluding: self.excludedActiveServer).first
+        return automaticProxySortedAvailableServers(candidates: self.currentSettings.servers, statuses: self.currentStatuses, excluding: self.excludedActiveServer).first
     }
 }
 

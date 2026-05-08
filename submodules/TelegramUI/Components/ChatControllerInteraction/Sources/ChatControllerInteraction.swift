@@ -216,6 +216,7 @@ public final class ChatControllerInteraction: ChatControllerInteractionProtocol 
     public let updateInputMode: ((ChatInputMode) -> ChatInputMode) -> Void
     public let updatePresentationState: ((ChatPresentationInterfaceState) -> ChatPresentationInterfaceState) -> Void
     public let openMessageShareMenu: (MessageId) -> Void
+    public let performPersonalChatDoubleTapAction: (Message, WhiteGramChatSettings.PersonalChatDoubleTapAction) -> Bool
     public let presentController: (ViewController, Any?) -> Void
     public let presentControllerInCurrent: (ViewController, Any?) -> Void
     public let navigationController: () -> NavigationController?
@@ -393,6 +394,7 @@ public final class ChatControllerInteraction: ChatControllerInteractionProtocol 
         updateInputMode: @escaping ((ChatInputMode) -> ChatInputMode) -> Void,
         updatePresentationState: @escaping ((ChatPresentationInterfaceState) -> ChatPresentationInterfaceState) -> Void,
         openMessageShareMenu: @escaping (MessageId) -> Void,
+        performPersonalChatDoubleTapAction: @escaping (Message, WhiteGramChatSettings.PersonalChatDoubleTapAction) -> Bool = { _, _ in false },
         presentController: @escaping (ViewController, Any?) -> Void,
         presentControllerInCurrent: @escaping (ViewController, Any?) -> Void,
         navigationController: @escaping () -> NavigationController?,
@@ -522,6 +524,7 @@ public final class ChatControllerInteraction: ChatControllerInteractionProtocol 
         self.updateInputMode = updateInputMode
         self.updatePresentationState = updatePresentationState
         self.openMessageShareMenu = openMessageShareMenu
+        self.performPersonalChatDoubleTapAction = performPersonalChatDoubleTapAction
         self.presentController = presentController
         self.presentControllerInCurrent = presentControllerInCurrent
         self.navigationController = navigationController

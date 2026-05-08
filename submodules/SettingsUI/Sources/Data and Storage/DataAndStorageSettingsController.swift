@@ -675,7 +675,8 @@ private func dataAndStorageControllerEntries(context: AccountContext, state: Dat
         proxyValue = presentationData.strings.GroupInfo_SharedMediaNone
     }
     entries.append(.connectionHeader(presentationData.theme, presentationData.strings.ChatSettings_ConnectionType_Title.uppercased()))
-    entries.append(.connectionProxy(presentationData.theme, presentationData.strings.SocksProxySetup_Title, proxyValue))
+    let connectionTitle = presentationData.strings.baseLanguageCode.lowercased().hasPrefix("ru") ? "Соединение" : "Connection"
+    entries.append(.connectionProxy(presentationData.theme, connectionTitle, proxyValue))
         
     return entries
 }

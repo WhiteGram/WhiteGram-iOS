@@ -18,69 +18,132 @@
 	<dict>
 		<key>CFBundleAlternateIcons</key>
 		<dict>
-			<key>Black</key>
+			<key>Aqua</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlackIcon</string>
-					<string>BlackNotificationIcon</string>
+					<string>Aqua</string>
+					<string>AquaNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>BlackClassic</key>
+			<key>Aura</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlackClassicIcon</string>
-					<string>BlackClassicNotificationIcon</string>
+					<string>Aura</string>
+					<string>AuraNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>BlackFilled</key>
+			<key>Azure</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlackFilledIcon</string>
+					<string>Azure</string>
+					<string>AzureNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>Blue</key>
+			<key>Chrome</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlueIcon</string>
-					<string>BlueNotificationIcon</string>
+					<string>Chrome</string>
+					<string>ChromeNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>BlueClassic</key>
+			<key>Crystal</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlueClassicIcon</string>
-					<string>BlueClassicNotificationIcon</string>
+					<string>Crystal</string>
+					<string>CrystalNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>BlueFilled</key>
+			<key>Depth</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlueFilledIcon</string>
+					<string>Depth</string>
+					<string>DepthNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>WhiteFilled</key>
+			<key>Frost</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>WhiteFilledIcon</string>
+					<string>Frost</string>
+					<string>FrostNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>Glow</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Glow</string>
+					<string>GlowNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>MonoDark</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>MonoDark</string>
+					<string>MonoDarkNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>MonoLite</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>MonoLite</string>
+					<string>MonoLiteNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>NeonWawe</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>NeonWawe</string>
+					<string>NeonWaweNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>Obsidian</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Obsidian</string>
+					<string>ObsidianNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>Steel</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>Steel</string>
+					<string>SteelNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
@@ -98,75 +161,145 @@
 	<dict>
 		<key>CFBundleAlternateIcons</key>
 		<dict>
-			<key>Black</key>
+			<key>Aqua</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlackIconIpad</string>
-					<string>BlackIconLargeIpad</string>
-					<string>BlackNotificationIcon</string>
+					<string>AquaIpad</string>
+					<string>AquaLargeIpad</string>
+					<string>AquaNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>BlackClassic</key>
+			<key>Aura</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlackClassicIconIpad</string>
-					<string>BlackClassicIconLargeIpad</string>
-					<string>BlackClassicNotificationIcon</string>
+					<string>AuraIpad</string>
+					<string>AuraLargeIpad</string>
+					<string>AuraNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>BlackFilled</key>
+			<key>Azure</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlackFilledIconIpad</string>
-					<string>BlackFilledIconLargeIpad</string>
+					<string>AzureIpad</string>
+					<string>AzureLargeIpad</string>
+					<string>AzureNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>Blue</key>
+			<key>Chrome</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlueIconIpad</string>
-					<string>BlueIconLargeIpad</string>
-					<string>BlueNotificationIcon</string>
+					<string>ChromeIpad</string>
+					<string>ChromeLargeIpad</string>
+					<string>ChromeNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>BlueClassic</key>
+			<key>Crystal</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlueClassicIconIpad</string>
-					<string>BlueClassicIconLargeIpad</string>
-					<string>BlueClassicNotificationIcon</string>
+					<string>CrystalIpad</string>
+					<string>CrystalLargeIpad</string>
+					<string>CrystalNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>BlueFilled</key>
+			<key>Depth</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>BlueFilledIconIpad</string>
-					<string>BlueFilledIconLargeIpad</string>
+					<string>DepthIpad</string>
+					<string>DepthLargeIpad</string>
+					<string>DepthNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>
 			</dict>
-			<key>WhiteFilled</key>
+			<key>Frost</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
 				<array>
-					<string>WhiteFilledIcon</string>
+					<string>FrostIpad</string>
+					<string>FrostLargeIpad</string>
+					<string>FrostNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>Glow</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>GlowIpad</string>
+					<string>GlowLargeIpad</string>
+					<string>GlowNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>MonoDark</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>MonoDarkIpad</string>
+					<string>MonoDarkLargeIpad</string>
+					<string>MonoDarkNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>MonoLite</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>MonoLiteIpad</string>
+					<string>MonoLiteLargeIpad</string>
+					<string>MonoLiteNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>NeonWawe</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>NeonWaweIpad</string>
+					<string>NeonWaweLargeIpad</string>
+					<string>NeonWaweNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>Obsidian</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>ObsidianIpad</string>
+					<string>ObsidianLargeIpad</string>
+					<string>ObsidianNotification</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<true/>
+			</dict>
+			<key>Steel</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>SteelIpad</string>
+					<string>SteelLargeIpad</string>
+					<string>SteelNotification</string>
 				</array>
 				<key>UIPrerenderedIcon</key>
 				<true/>

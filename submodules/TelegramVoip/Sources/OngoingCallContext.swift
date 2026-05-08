@@ -1054,6 +1054,13 @@ public final class OngoingCallContext {
                     directConnection = nil
                 }
                 
+                if enableTCP {
+                    filteredConnections = filteredConnections.filter { connection in
+                        return connection.hasTcp
+                    }
+                    allowP2P = false
+                }
+                
                 #if DEBUG && true
                 var customParameters = customParameters
                 if let initialCustomParameters = try? JSONSerialization.jsonObject(with: (customParameters ?? "{}").data(using: .utf8)!) as? [String: Any] {

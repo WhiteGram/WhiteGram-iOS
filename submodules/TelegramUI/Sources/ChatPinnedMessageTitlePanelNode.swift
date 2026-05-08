@@ -25,6 +25,9 @@ import TranslateUI
 import ChatControllerInteraction
 import LegacyChatHeaderPanelComponent
 import UIKitRuntimeUtils
+import GlassBackgroundComponent
+import ComponentFlow
+import ComponentDisplayAdapters
 
 private enum PinnedMessageAnimation {
     case slideToTop
@@ -44,12 +47,14 @@ private final class ButtonsContainerNode: ASDisplayNode {
     }
 }
 
-final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
+final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode, UIGestureRecognizerDelegate {
     private let context: AccountContext
     private let tapButton: HighlightTrackingButtonNode
     private let buttonsContainer: ButtonsContainerNode
     private let closeButton: HighlightableButtonNode
     private let listButton: HighlightableButtonNode
+    private let compactGlassBackgroundNode: ASDisplayNode
+    private let compactButtonBackgroundNode: ASImageNode
     private let activityIndicatorContainer: ASDisplayNode
     private let activityIndicator: RadialStatusNode
     
@@ -76,6 +81,8 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
     private let translationDisposable = MetaDisposable()
     
     private var isReplyThread: Bool = false
+    private var compactPinnedMessagesPanelActive: Bool = false
+    private var compactButtonPanGestureRecognizer: UIPanGestureRecognizer?
     
     private let fetchDisposable = MetaDisposable()
     
@@ -86,6 +93,34 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
     private let animationRenderer: MultiAnimationRenderer?
 
     private let queue = Queue()
+
+    static func shouldUseCompactPinnedMessagesPanel(interfaceState: ChatPresentationInterfaceState, context: AccountContext) -> Bool {
+        let isReplyThread: Bool
+        if case let .replyThread(message) = interfaceState.chatLocation, !message.isForumPost {
+            isReplyThread = true
+        } else {
+            isReplyThread = false
+        }
+        if isReplyThread {
+            return false
+        }
+
+        if let message = interfaceState.pinnedMessage, !message.message.isRestricted(platform: "ios", contentSettings: context.currentContentSettings.with { $0 }) {
+            for attribute in message.message.attributes {
+                if let attribute = attribute as? ReplyMarkupMessageAttribute, attribute.flags.contains(.inline), attribute.rows.count == 1, attribute.rows[0].buttons.count == 1 {
+                    return false
+                }
+            }
+
+            for media in message.message.media {
+                if let webpage = media as? TelegramMediaWebpage, case let .Loaded(content) = webpage.content, content.type == "telegram_call" {
+                    return false
+                }
+            }
+        }
+
+        return WhiteGramChatSettings.current.compactPinnedMessagesPanel
+    }
     
     private var captureProtected: Bool = false {
         didSet {
@@ -107,6 +142,23 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
         }
         let result = super.hitTest(point, with: event)
         return result
+    }
+
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === self.compactButtonPanGestureRecognizer {
+            guard self.compactPinnedMessagesPanelActive else {
+                return false
+            }
+            let location = gestureRecognizer.location(in: self.contextContainer.view)
+            guard self.tapButton.frame.insetBy(dx: -8.0, dy: -4.0).contains(location) else {
+                return false
+            }
+            if let panGestureRecognizer = gestureRecognizer as? UIPanGestureRecognizer {
+                let velocity = panGestureRecognizer.velocity(in: self.view)
+                return sqrt(velocity.x * velocity.x + velocity.y * velocity.y) > 8.0
+            }
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
     }
     
     init(context: AccountContext, animationCache: AnimationCache?, animationRenderer: MultiAnimationRenderer?) {
@@ -133,6 +185,18 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
         self.listButton = HighlightableButtonNode()
         self.listButton.hitTestSlop = UIEdgeInsets(top: -8.0, left: -8.0, bottom: -8.0, right: -8.0)
         self.listButton.displaysAsynchronously = false
+
+        self.compactGlassBackgroundNode = ASDisplayNode(viewBlock: {
+            let view = GlassContextExtractableContainer()
+            view.isUserInteractionEnabled = false
+            return view
+        })
+        self.compactGlassBackgroundNode.isUserInteractionEnabled = false
+        self.compactGlassBackgroundNode.isHidden = true
+
+        self.compactButtonBackgroundNode = ASImageNode()
+        self.compactButtonBackgroundNode.displaysAsynchronously = false
+        self.compactButtonBackgroundNode.isHidden = true
         
         self.activityIndicatorContainer = ASDisplayNode()
         self.activityIndicatorContainer.isUserInteractionEnabled = false
@@ -218,6 +282,8 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
         self.actionButton.addSubnode(self.actionButtonBackgroundNode)
         self.actionButton.addSubnode(self.actionButtonTitleNode)
         self.buttonsContainer.addSubnode(self.actionButton)
+        self.buttonsContainer.addSubnode(self.compactGlassBackgroundNode)
+        self.buttonsContainer.addSubnode(self.compactButtonBackgroundNode)
         self.buttonsContainer.addSubnode(self.closeButton)
         self.buttonsContainer.addSubnode(self.listButton)
         self.contextContainer.addSubnode(self.buttonsContainer)
@@ -233,6 +299,56 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
             if let interfaceInteraction = strongSelf.interfaceInteraction, let _ = strongSelf.currentMessage, !strongSelf.isReplyThread {
                 interfaceInteraction.activatePinnedListPreview(strongSelf.contextContainer, gesture)
             }
+        }
+    }
+
+    override func didLoad() {
+        super.didLoad()
+
+        let panGestureRecognizer = UIPanGestureRecognizer(target: self, action: #selector(self.compactButtonPanGesture(_:)))
+        panGestureRecognizer.maximumNumberOfTouches = 1
+        panGestureRecognizer.cancelsTouchesInView = true
+        panGestureRecognizer.delegate = self
+        self.contextContainer.view.addGestureRecognizer(panGestureRecognizer)
+        self.compactButtonPanGestureRecognizer = panGestureRecognizer
+    }
+
+    @objc private func compactButtonPanGesture(_ gestureRecognizer: UIPanGestureRecognizer) {
+        guard self.compactPinnedMessagesPanelActive else {
+            self.buttonsContainer.view.transform = .identity
+            return
+        }
+
+        switch gestureRecognizer.state {
+        case .began:
+            self.buttonsContainer.view.layer.removeAllAnimations()
+        case .changed:
+            let translation = gestureRecognizer.translation(in: self.view)
+            let distance = min(1.0, sqrt(translation.x * translation.x + translation.y * translation.y) / 88.0)
+            let totalAxis = max(1.0, abs(translation.x) + abs(translation.y))
+            let horizontalFactor = abs(translation.x) / totalAxis
+            let verticalFactor = 1.0 - horizontalFactor
+
+            let scaleX = 1.0 + distance * (0.22 * horizontalFactor + 0.08 * verticalFactor)
+            let scaleY = 1.0 + distance * (0.22 * verticalFactor + 0.08 * horizontalFactor)
+            let compressionX = 1.0 - distance * 0.055 * verticalFactor
+            let compressionY = 1.0 - distance * 0.055 * horizontalFactor
+
+            self.buttonsContainer.view.transform = CGAffineTransform(scaleX: scaleX * compressionX, y: scaleY * compressionY)
+        case .ended, .cancelled, .failed:
+            UIView.animate(
+                withDuration: 0.55,
+                delay: 0.0,
+                usingSpringWithDamping: 0.58,
+                initialSpringVelocity: 0.0,
+                options: [.allowUserInteraction, .beginFromCurrentState],
+                animations: {
+                    self.buttonsContainer.view.transform = .identity
+                },
+                completion: nil
+            )
+        default:
+            break
         }
     }
     
@@ -266,9 +382,10 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
                 context.addLine(to: CGPoint(x: 1.0, y: size.height - 1.0))
                 context.strokePath()
             }), for: [])
-            self.listButton.setImage(generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Accessory Panels/PinnedList"), color: interfaceState.theme.chat.inputPanel.panelControlColor), for: [])
+            self.listButton.setImage(generateTintedImage(image: UIImage(bundleImageName: "Chat/Input/Accessory Panels/PinnedList"), color: interfaceState.theme.rootController.navigationBar.buttonColor), for: [])
             
             self.actionButtonBackgroundNode.image = generateStretchableFilledCircleImage(diameter: 14.0 * 2.0, color: interfaceState.theme.list.itemCheckColors.fillColor, strokeColor: nil, strokeWidth: nil, backgroundColor: nil)
+            self.compactButtonBackgroundNode.image = generateStretchableFilledCircleImage(diameter: 38.0, color: interfaceState.theme.chat.inputPanel.panelBackgroundColor.mixedWith(interfaceState.theme.chat.inputPanel.panelControlColor, alpha: 0.12), strokeColor: interfaceState.theme.chat.inputPanel.panelControlColor.withAlphaComponent(0.18), strokeWidth: 1.0, backgroundColor: nil)
         }
         
         if self.statusDisposable == nil, let interfaceInteraction = self.interfaceInteraction, let statuses = interfaceInteraction.statuses {
@@ -340,7 +457,13 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
         var displayCloseButton = false
         var displayListButton = false
         
-        if isReplyThread || actionTitle != nil {
+        let compactPinnedMessagesPanel = ChatPinnedMessageTitlePanelNode.shouldUseCompactPinnedMessagesPanel(interfaceState: interfaceState, context: self.context) && actionTitle == nil
+        self.compactPinnedMessagesPanelActive = compactPinnedMessagesPanel
+
+        if compactPinnedMessagesPanel {
+            displayCloseButton = false
+            displayListButton = true
+        } else if isReplyThread || actionTitle != nil {
             displayCloseButton = false
             displayListButton = false
         } else if let message = interfaceState.pinnedMessage {
@@ -401,6 +524,52 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
                 self.listButton.isHidden = !displayListButton
                 self.listButton.layer.removeAllAnimations()
             }
+        }
+
+        if compactPinnedMessagesPanel {
+            self.compactGlassBackgroundNode.isHidden = false
+            self.compactButtonBackgroundNode.isHidden = true
+            self.clippingContainer.isHidden = true
+            self.lineNode.isHidden = true
+            self.actionButton.isHidden = true
+            self.actionButtonBackgroundNode.isHidden = true
+            self.actionButtonTitleNode.isHidden = true
+
+            let compactButtonSize = CGSize(width: 44.0, height: 44.0)
+            let compactButtonX = width - rightInset - 50.0
+            self.buttonsContainer.frame = CGRect(origin: CGPoint(x: compactButtonX, y: 0.0), size: CGSize(width: compactButtonSize.width, height: panelHeight))
+            let compactButtonFrame = CGRect(origin: CGPoint(x: 0.0, y: floor((panelHeight - compactButtonSize.height) / 2.0)), size: compactButtonSize)
+            transition.updateFrame(node: self.compactGlassBackgroundNode, frame: compactButtonFrame)
+            if let compactGlassBackgroundView = self.compactGlassBackgroundNode.view as? GlassContextExtractableContainer {
+                compactGlassBackgroundView.update(
+                    size: compactButtonSize,
+                    cornerRadius: compactButtonSize.height * 0.5,
+                    isDark: interfaceState.theme.overallDarkAppearance,
+                    tintColor: .init(kind: interfaceState.preferredGlassType == .clear ? .clear : .panel),
+                    isInteractive: true,
+                    transition: ComponentTransition(transition)
+                )
+            }
+            transition.updateFrame(node: self.compactButtonBackgroundNode, frame: compactButtonFrame)
+            transition.updateFrame(node: self.listButton, frame: CGRect(origin: CGPoint(x: 11.0, y: 14.0), size: CGSize(width: 22.0, height: 22.0)))
+            transition.updateFrame(node: self.closeButton, frame: CGRect(origin: CGPoint(x: 11.0, y: 14.0), size: CGSize(width: 22.0, height: 22.0)))
+
+            let indicatorSize = CGSize(width: 22.0, height: 22.0)
+            transition.updateFrame(node: self.activityIndicatorContainer, frame: CGRect(origin: CGPoint(x: compactButtonX + 11.0, y: 14.0), size: indicatorSize))
+            transition.updateFrame(node: self.activityIndicator, frame: CGRect(origin: CGPoint(), size: indicatorSize))
+
+            self.tapButton.frame = CGRect(origin: CGPoint(x: compactButtonX, y: 0.0), size: CGSize(width: compactButtonSize.width, height: panelHeight))
+            self.contextContainer.frame = CGRect(origin: CGPoint(), size: CGSize(width: width, height: panelHeight))
+            self.currentLayout = nil
+            self.currentMessage = interfaceState.pinnedMessage
+
+            return LayoutResult(backgroundHeight: panelHeight, insetHeight: panelHeight, hitTestSlop: 0.0)
+        } else {
+            self.compactGlassBackgroundNode.isHidden = true
+            self.compactButtonBackgroundNode.isHidden = true
+            self.buttonsContainer.view.transform = .identity
+            self.clippingContainer.isHidden = false
+            self.lineNode.isHidden = false
         }
         
         let rightInset: CGFloat = 18.0 + rightInset
@@ -910,6 +1079,8 @@ final class ChatPinnedMessageTitlePanelNode: ChatTitleAccessoryPanelNode {
         if let interfaceInteraction = self.interfaceInteraction, let message = self.currentMessage {
             if self.isReplyThread {
                 interfaceInteraction.scrollToTop()
+            } else if self.compactPinnedMessagesPanelActive {
+                interfaceInteraction.openPinnedList(message.message.id)
             } else {
                 interfaceInteraction.navigateToMessage(message.message.id, false, true, .pinnedMessage)
             }

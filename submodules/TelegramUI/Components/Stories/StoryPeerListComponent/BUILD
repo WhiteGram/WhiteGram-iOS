@@ -62,6 +62,7 @@ swift_library(
         "//submodules/TelegramCore",
         "//submodules/SSignalKit/SwiftSignalKit",
         "//submodules/TelegramPresentationData",
+        "//submodules/TelegramUIPreferences",
         "//submodules/AvatarNode",
         "//submodules/ContextUI",
         "//submodules/TelegramUI/Components/Stories/StoryContainerScreen",

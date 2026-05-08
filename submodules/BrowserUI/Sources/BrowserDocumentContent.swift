@@ -53,6 +53,7 @@ final class BrowserDocumentContent: UIView, BrowserContent, WKNavigationDelegate
         self.file = file
         
         let configuration = WKWebViewConfiguration()
+        whiteGramInstallWebTrackerBlocker(into: configuration.userContentController)
         self.webView = WKWebView(frame: CGRect(), configuration: configuration)
         self.webView.allowsLinkPreview = true
         

@@ -932,6 +932,85 @@ public extension CALayer {
     }
 }
 
+public func makeRuntimeTelegramGlassEffect(isDark: Bool, isInteractive: Bool = false) -> UIVisualEffect? {
+    guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 else {
+        return nil
+    }
+
+    func applyParams(effect: NSObject) {
+        let tintColor = isDark ? UIColor(white: 1.0, alpha: 0.025) : UIColor(white: 1.0, alpha: 0.1)
+        let tintSelector = NSSelectorFromString("setTintColor:")
+        if effect.responds(to: tintSelector), let method = effect.method(for: tintSelector) {
+            let function = unsafeBitCast(method, to: (@convention(c) (NSObject, Selector, UIColor?) -> Void).self)
+            function(effect, tintSelector, tintColor)
+        }
+
+        let interactiveSelector = NSSelectorFromString("setInteractive:")
+        if effect.responds(to: interactiveSelector), let method = effect.method(for: interactiveSelector) {
+            let function = unsafeBitCast(method, to: (@convention(c) (NSObject, Selector, Bool) -> Void).self)
+            function(effect, interactiveSelector, isInteractive)
+            return
+        }
+
+        let isInteractiveSelector = NSSelectorFromString("setIsInteractive:")
+        if effect.responds(to: isInteractiveSelector), let method = effect.method(for: isInteractiveSelector) {
+            let function = unsafeBitCast(method, to: (@convention(c) (NSObject, Selector, Bool) -> Void).self)
+            function(effect, isInteractiveSelector, isInteractive)
+        }
+    }
+
+    let regularStyle = 0
+
+    for className in ["UIGlassEffect", "_UIGlassEffect"] {
+        guard let effectClass = NSClassFromString(className) as AnyObject as? NSObject else {
+            continue
+        }
+
+        for selectorName in ["effectWithStyle:", "_effectWithStyle:"] {
+            let selector = NSSelectorFromString(selectorName)
+            if let method = effectClass.method(for: selector) {
+                let function = unsafeBitCast(method, to: (@convention(c) (AnyObject, Selector, Int) -> NSObject?).self)
+                if let effect = function(effectClass, selector, regularStyle) {
+                    applyParams(effect: effect)
+                    return effect as? UIVisualEffect
+                }
+            }
+        }
+
+        let allocSelector = NSSelectorFromString("alloc")
+        guard let allocMethod = effectClass.method(for: allocSelector) else {
+            continue
+        }
+        let allocFunction = unsafeBitCast(allocMethod, to: (@convention(c) (AnyObject, Selector) -> NSObject?).self)
+        guard let allocatedEffect = allocFunction(effectClass, allocSelector) else {
+            continue
+        }
+
+        for selectorName in ["initWithStyle:", "_initWithStyle:"] {
+            let selector = NSSelectorFromString(selectorName)
+            if let method = allocatedEffect.method(for: selector) {
+                let function = unsafeBitCast(method, to: (@convention(c) (NSObject, Selector, Int) -> NSObject?).self)
+                if let effect = function(allocatedEffect, selector, regularStyle) {
+                    applyParams(effect: effect)
+                    return effect as? UIVisualEffect
+                }
+            }
+        }
+
+        let initSelector = NSSelectorFromString("init")
+        if let initMethod = allocatedEffect.method(for: initSelector) {
+            let function = unsafeBitCast(initMethod, to: (@convention(c) (NSObject, Selector) -> NSObject?).self)
+            if let effect = function(allocatedEffect, initSelector) {
+                applyParams(effect: effect)
+                return effect as? UIVisualEffect
+            }
+        }
+
+    }
+
+    return nil
+}
+
 public extension CAEmitterCell {
     static func createEmitterBehavior(type: String) -> NSObject {
         let selector = ["behaviorWith", "Type:"].joined(separator: "")

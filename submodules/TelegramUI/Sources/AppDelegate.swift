@@ -640,9 +640,13 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             isICloudEnabled: buildConfig.isICloudEnabled
         )
         
-        guard let appGroupUrl = maybeAppGroupUrl else {
-            self.mainWindow?.presentNative(UIAlertController(title: nil, message: "Error 2", preferredStyle: .alert))
-            return true
+        let appGroupUrl: URL
+        if let maybeAppGroupUrl {
+            appGroupUrl = maybeAppGroupUrl
+        } else {
+            let fallbackBaseUrl = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first ?? URL(fileURLWithPath: NSTemporaryDirectory())
+            appGroupUrl = fallbackBaseUrl.appendingPathComponent("TelegramData", isDirectory: true)
+            let _ = try? FileManager.default.createDirectory(at: appGroupUrl, withIntermediateDirectories: true, attributes: nil)
         }
         
         var isDebugConfiguration = false
@@ -947,23 +951,22 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             self.window?.rootViewController?.dismiss(animated: true, completion: nil)
         }, getAvailableAlternateIcons: {
             if #available(iOS 10.3, *) {
-                var icons = [
-                    PresentationAppIcon(name: "BlueIcon", imageName: "BlueIcon", isDefault: true),
-                    PresentationAppIcon(name: "New2", imageName: "New2"),
-                    PresentationAppIcon(name: "New1", imageName: "New1"),
-                    PresentationAppIcon(name: "BlackIcon", imageName: "BlackIcon"),
-                    PresentationAppIcon(name: "BlueClassicIcon", imageName: "BlueClassicIcon"),
-                    PresentationAppIcon(name: "BlackClassicIcon", imageName: "BlackClassicIcon"),
-                    PresentationAppIcon(name: "BlueFilledIcon", imageName: "BlueFilledIcon"),
-                    PresentationAppIcon(name: "BlackFilledIcon", imageName: "BlackFilledIcon")
+                let icons = [
+                    PresentationAppIcon(name: "Default", imageName: "BlueIcon", isDefault: true),
+                    PresentationAppIcon(name: "Aqua", imageName: "Aqua"),
+                    PresentationAppIcon(name: "Azure", imageName: "Azure"),
+                    PresentationAppIcon(name: "MonoDark", imageName: "MonoDark"),
+                    PresentationAppIcon(name: "MonoLite", imageName: "MonoLite"),
+                    PresentationAppIcon(name: "Aura", imageName: "Aura"),
+                    PresentationAppIcon(name: "Depth", imageName: "Depth"),
+                    PresentationAppIcon(name: "Steel", imageName: "Steel"),
+                    PresentationAppIcon(name: "Chrome", imageName: "Chrome"),
+                    PresentationAppIcon(name: "NeonWawe", imageName: "NeonWawe"),
+                    PresentationAppIcon(name: "Glow", imageName: "Glow"),
+                    PresentationAppIcon(name: "Frost", imageName: "Frost"),
+                    PresentationAppIcon(name: "Obsidian", imageName: "Obsidian"),
+                    PresentationAppIcon(name: "Crystal", imageName: "Crystal")
                 ]
-                if buildConfig.isInternalBuild {
-                    icons.append(PresentationAppIcon(name: "WhiteFilledIcon", imageName: "WhiteFilledIcon"))
-                }
-                
-                icons.append(PresentationAppIcon(name: "Premium", imageName: "Premium", isPremium: true))
-                icons.append(PresentationAppIcon(name: "PremiumTurbo", imageName: "PremiumTurbo", isPremium: true))
-                icons.append(PresentationAppIcon(name: "PremiumBlack", imageName: "PremiumBlack", isPremium: true))
                 
                 return icons
             } else {
@@ -1644,8 +1647,6 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             }
         })
         
-        //self.addBackgroundDownloadTask()
-        
         let reflectorBenchmarkDisposable = MetaDisposable()
         let runReflectorBenchmarkDisposable = MetaDisposable()
         let _ = (self.context.get()
@@ -1691,163 +1692,8 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
         return true
     }
     
-    private var backgroundSessionSourceDataDisposables: [String: Disposable] = [:]
-    private var backgroundUploadResultSubscribers: [String: Bag<(String?) -> Void>] = [:]
-    
     func uploadInBackround(postbox: Postbox, resource: MediaResource) -> Signal<String?, NoError> {
-        let baseAppBundleId = Bundle.main.bundleIdentifier!
-        let session = self.urlSession(identifier: "\(baseAppBundleId).backroundSession")
-        
-        let signal = Signal<Never, NoError> { subscriber in
-            let disposable = MetaDisposable()
-            
-            let _ = session.getAllTasks(completionHandler: { tasks in
-                var alreadyExists = false
-                for task in tasks {
-                    if let originalRequest = task.originalRequest {
-                        if let requestResourceId = originalRequest.value(forHTTPHeaderField: "tresource") {
-                            if resource.id.stringRepresentation == requestResourceId {
-                                alreadyExists = true
-                                break
-                            }
-                        }
-                    }
-                }
-                
-                if !alreadyExists, self.backgroundSessionSourceDataDisposables[resource.id.stringRepresentation] == nil {
-                    self.backgroundSessionSourceDataDisposables[resource.id.stringRepresentation] = (Signal<Never, NoError> { subscriber in
-                        let dataDisposable = (postbox.mediaBox.resourceData(resource)
-                        |> deliverOnMainQueue).start(next: { data in
-                            if data.complete {
-                                self.addBackgroundUploadTask(id: resource.id.stringRepresentation, path: data.path)
-                            }
-                        })
-                        let fetchDisposable = postbox.mediaBox.fetchedResource(resource, parameters: nil).start()
-                        
-                        return ActionDisposable {
-                            dataDisposable.dispose()
-                            fetchDisposable.dispose()
-                        }
-                    }).start()
-                }
-            })
-            
-            return disposable
-        }
-        |> runOn(.mainQueue())
-        
-        return Signal { subscriber in
-            let bag: Bag<(String?) -> Void>
-            if let current = self.backgroundUploadResultSubscribers[resource.id.stringRepresentation] {
-                bag = current
-            } else {
-                bag = Bag()
-                self.backgroundUploadResultSubscribers[resource.id.stringRepresentation] = bag
-            }
-            let index = bag.add { result in
-                subscriber.putNext(result)
-                subscriber.putCompletion()
-            }
-            
-            let workDisposable = signal.start()
-            
-            return ActionDisposable {
-                workDisposable.dispose()
-                
-                Queue.mainQueue().async {
-                    if let bag = self.backgroundUploadResultSubscribers[resource.id.stringRepresentation] {
-                        bag.remove(index)
-                        if bag.isEmpty {
-                            //TODO:cancel tasks
-                        }
-                    }
-                }
-            }
-        }
-        |> runOn(.mainQueue())
-    }
-    
-    private func addBackgroundUploadTask(id: String, path: String) {
-        let baseAppBundleId = Bundle.main.bundleIdentifier!
-        let session = self.urlSession(identifier: "\(baseAppBundleId).backroundSession")
-        
-        let fileName = "upload-\(UInt32.random(in: 0 ... UInt32.max))"
-        let uploadFilePath = NSTemporaryDirectory() + "/" + fileName
-        guard let sourceFile = ManagedFile(queue: nil, path: uploadFilePath, mode: .readwrite) else {
-            return
-        }
-        guard let inFile = ManagedFile(queue: nil, path: path, mode: .read) else {
-            return
-        }
-        
-        let boundary = UUID().uuidString
-        
-        var headerData = Data()
-        headerData.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
-        headerData.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
-        headerData.append("Content-Type: image/png\r\n\r\n".data(using: .utf8)!)
-        
-        var footerData = Data()
-        footerData.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        let _ = sourceFile.write(headerData)
-        
-        let bufferSize = 512 * 1024
-        let buffer = malloc(bufferSize)!
-        defer {
-            free(buffer)
-        }
-        
-        while true {
-            let readBytes = inFile.read(buffer, bufferSize)
-            if readBytes <= 0 {
-                break
-            } else {
-                let _ = sourceFile.write(buffer, count: readBytes)
-            }
-        }
-        
-        let _ = sourceFile.write(footerData)
-        
-        sourceFile._unsafeClose()
-        inFile._unsafeClose()
-        
-        var request = URLRequest(url: URL(string: "http://localhost:25478/upload?token=f9403fc5f537b4ab332d")!)
-        request.httpMethod = "POST"
-        
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        request.setValue(id, forHTTPHeaderField: "tresource")
-        
-        let task = session.uploadTask(with: request, fromFile: URL(fileURLWithPath: uploadFilePath))
-        task.resume()
-    }
-    
-    private func addBackgroundDownloadTask() {
-        let baseAppBundleId = Bundle.main.bundleIdentifier!
-        let session = self.urlSession(identifier: "\(baseAppBundleId).backroundSession")
-
-        var request = URLRequest(url: URL(string: "https://example.com/\(UInt64.random(in: 0 ... UInt64.max))")!)
-        request.httpMethod = "GET"
-        
-        let task = session.downloadTask(with: request)
-        Logger.shared.log("App \(self.episodeId)", "adding download task \(String(describing: request.url))")
-        task.earliestBeginDate = Date(timeIntervalSinceNow: 30.0)
-        task.resume()
-    }
-    
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        Logger.shared.log("App \(self.episodeId)", "completed download task \(String(describing: task.originalRequest?.url)) error: \(String(describing: error))")
-        if let response = task.response as? HTTPURLResponse {
-            if let originalRequest = task.originalRequest {
-                if let requestResourceId = originalRequest.value(forHTTPHeaderField: "tresource") {
-                    if let bag = self.backgroundUploadResultSubscribers[requestResourceId] {
-                        for item in bag.copyItems() {
-                            item("http server: \(response.allHeaderFields)")
-                        }
-                    }
-                }
-            }
-        }
+        return .single(nil)
     }
     
     private func runCacheReindexTasks(lowImpact: Bool, completion: @escaping () -> Void) -> Disposable {

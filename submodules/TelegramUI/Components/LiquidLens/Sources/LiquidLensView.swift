@@ -37,6 +37,8 @@ private final class RestingBackgroundView: UIVisualEffectView {
             return
         }
         self.isDark = isDark
+        self.effect = UIBlurEffect(style: isDark ? .dark : .light)
+        self.backgroundColor = isDark ? UIColor(white: 0.0, alpha: 0.18) : UIColor(white: 1.0, alpha: 0.08)
         
         if let sublayer = self.layer.sublayers?[0], let _ = sublayer.filters {
             sublayer.backgroundColor = nil
@@ -425,6 +427,10 @@ public final class LiquidLensView: UIView {
         let transition: ComponentTransition = isFirstTime ? .immediate : transition
 
         self.params = params
+        self.restingBackgroundView.update(isDark: params.isDark)
+        if let lensView = self.lensView {
+            lensView.setValue(params.isDark ? UIColor(white: 0.0, alpha: 0.2) : UIColor(white: 1.0, alpha: 0.12), forKey: "restingBackgroundColor")
+        }
 
         transition.setFrame(view: self.containerView, frame: CGRect(origin: CGPoint(), size: params.size))
 

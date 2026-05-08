@@ -9,6 +9,7 @@ import AppBundle
 import MessageInputPanelComponent
 import TelegramCore
 import Postbox
+import TelegramUIPreferences
 import UndoUI
 import ReactionSelectionNode
 import EntityKeyboard
@@ -2118,6 +2119,11 @@ public class StoryContainerScreen: ViewControllerComponentContainer {
         ), navigationBarAppearance: .none, theme: .dark)
         
         self.statusBar.statusBarStyle = .White
+        if WhiteGramStorySettings.current.disableStories {
+            Queue.mainQueue().async { [weak self] in
+                self?.dismiss()
+            }
+        }
         self.navigationPresentation = .standaloneFlatModal
         self.blocksBackgroundWhenInOverlay = true
         self.automaticallyControlPresentationContextLayout = false

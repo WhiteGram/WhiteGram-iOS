@@ -6,9 +6,15 @@ import SwiftSignalKit
 import TelegramCore
 import Postbox
 import AvatarNode
+import TelegramUIPreferences
+import AlertUI
+import PresentationDataUtils
 
 public extension StoryContainerScreen {
     static func openArchivedStories(context: AccountContext, parentController: ViewController, avatarNode: AvatarNode, sharedProgressDisposable: MetaDisposable?) {
+        if WhiteGramStorySettings.current.disableStories {
+            return
+        }
         let storyContent = StoryContentContextImpl(context: context, isHidden: true, focusedPeerId: nil, singlePeer: false)
         let signal = storyContent.state
         |> take(1)
@@ -89,6 +95,9 @@ public extension StoryContainerScreen {
     }
     
     static func openPeerStories(context: AccountContext, peerId: EnginePeer.Id, parentController: ViewController, avatarNode: AvatarNode?, sharedProgressDisposable: MetaDisposable? = nil) {
+        if WhiteGramStorySettings.current.disableStories {
+            return
+        }
         return openPeerStoriesCustom(
             context: context,
             peerId: peerId,
@@ -172,8 +181,38 @@ public extension StoryContainerScreen {
         transitionOut: @escaping (EnginePeer.Id) -> StoryContainerScreen.TransitionOut?,
         setFocusedItem: @escaping (Signal<StoryId?, NoError>) -> Void,
         setProgress: @escaping (Signal<Never, NoError>) -> Void,
-        completion: @escaping (StoryContainerScreen) -> Void = { _ in }
+        completion: @escaping (StoryContainerScreen) -> Void = { _ in },
+        skipWhiteGramConfirmation: Bool = false
     ) {
+        let whiteGramStorySettings = WhiteGramStorySettings.current
+        if whiteGramStorySettings.disableStories {
+            return
+        }
+        if !skipWhiteGramConfirmation && whiteGramStorySettings.askBeforeViewingStories && peerId != context.account.peerId {
+            let presentationData = context.sharedContext.currentPresentationData.with { $0 }
+            parentController.present(textAlertController(context: context, title: "Просмотр истории", text: "Владелец истории увидит, что вы просмотрели историю.", actions: [
+                TextAlertAction(type: .genericAction, title: presentationData.strings.Common_Cancel, action: {
+                }),
+                TextAlertAction(type: .defaultAction, title: "Продолжить", action: {
+                    StoryContainerScreen.openPeerStoriesCustom(
+                        context: context,
+                        peerId: peerId,
+                        focusOnId: focusOnId,
+                        isHidden: isHidden,
+                        initialOrder: initialOrder,
+                        singlePeer: singlePeer,
+                        parentController: parentController,
+                        transitionIn: transitionIn,
+                        transitionOut: transitionOut,
+                        setFocusedItem: setFocusedItem,
+                        setProgress: setProgress,
+                        completion: completion,
+                        skipWhiteGramConfirmation: true
+                    )
+                })
+            ]), in: .window(.root))
+            return
+        }
         let storyContent = StoryContentContextImpl(context: context, isHidden: isHidden, focusedPeerId: peerId, focusedStoryId: focusOnId, singlePeer: singlePeer, fixedOrder: initialOrder)
         let signal = storyContent.state
         |> take(1)

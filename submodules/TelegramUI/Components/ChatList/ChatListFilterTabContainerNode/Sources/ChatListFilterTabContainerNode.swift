@@ -7,6 +7,7 @@ import TelegramPresentationData
 import TextNodeWithEntities
 import AccountContext
 import GlassBackgroundComponent
+import LiquidLens
 import ComponentFlow
 import ComponentDisplayAdapters
 
@@ -486,8 +487,10 @@ public final class ChatListFilterTabContainerNode: ASDisplayNode {
     private let context: AccountContext
     private let backgroundContainerView: GlassBackgroundContainerView
     private let backgroundView: GlassBackgroundView
+    private let liquidLensView: LiquidLensView
     private let scrollNode: ASScrollNode
     private let selectedBackgroundNode: ASImageNode
+    private let selectedBackgroundView: GlassBackgroundView
     private var itemNodes: [ChatListFilterTabEntryId: ItemNode] = [:]
     
     public var tabSelected: ((ChatListFilterTabEntryId, Bool) -> Void)?
@@ -540,12 +543,18 @@ public final class ChatListFilterTabContainerNode: ASDisplayNode {
         self.backgroundContainerView = GlassBackgroundContainerView()
         self.backgroundView = GlassBackgroundView()
         self.backgroundContainerView.contentView.addSubview(self.backgroundView)
+        self.liquidLensView = LiquidLensView(kind: .noContainer)
+        self.liquidLensView.isUserInteractionEnabled = false
         
         self.scrollNode = ASScrollNode()
         
         self.selectedBackgroundNode = ASImageNode()
         self.selectedBackgroundNode.displaysAsynchronously = false
         self.selectedBackgroundNode.displayWithoutProcessing = true
+        
+        self.selectedBackgroundView = GlassBackgroundView()
+        self.selectedBackgroundView.isUserInteractionEnabled = false
+        self.selectedBackgroundView.isHidden = true
         
         super.init()
         
@@ -560,7 +569,9 @@ public final class ChatListFilterTabContainerNode: ASDisplayNode {
             self.scrollNode.view.contentInsetAdjustmentBehavior = .never
         }
         
+        self.backgroundView.contentView.addSubview(self.liquidLensView)
         self.backgroundView.contentView.addSubview(self.scrollNode.view)
+        self.scrollNode.view.insertSubview(self.selectedBackgroundView, at: 0)
         self.scrollNode.addSubnode(self.selectedBackgroundNode)
         
         let reorderingGesture = ReorderingGestureRecognizer(shouldBegin: { [weak self] point in
@@ -704,6 +715,7 @@ public final class ChatListFilterTabContainerNode: ASDisplayNode {
         
         transition.updateFrame(view: self.backgroundView, frame: CGRect(origin: CGPoint(), size: backgroundSize))
         self.backgroundView.update(size: backgroundSize, cornerRadius: backgroundSize.height * 0.5, isDark: presentationData.theme.overallDarkAppearance, tintColor: .init(kind: .panel), isInteractive: true, transition: ComponentTransition(transition))
+        ComponentTransition(transition).setFrame(view: self.liquidLensView, frame: CGRect(origin: CGPoint(), size: backgroundSize))
         
         var isEditing = isEditing
         if isReordering {
@@ -950,13 +962,19 @@ public final class ChatListFilterTabContainerNode: ASDisplayNode {
         }
         
         if let selectedFrame = selectedFrame {
-            let wasAdded = self.selectedBackgroundNode.isHidden
-            self.selectedBackgroundNode.isHidden = false
             let selectedBackgroundFrame = CGRect(origin: CGPoint(x: selectedFrame.minX - 10.0, y: selectedFrame.minY - floor((36.0 - selectedFrame.height) * 0.5)), size: CGSize(width: selectedFrame.width + 10.0 * 2.0, height: 36.0))
-            if wasAdded {
-                self.selectedBackgroundNode.frame = selectedBackgroundFrame
+            if #available(iOS 26.0, *) {
+                self.selectedBackgroundNode.isHidden = true
+                self.selectedBackgroundView.isHidden = true
             } else {
-                transition.updateFrame(node: self.selectedBackgroundNode, frame: selectedBackgroundFrame)
+                let wasAdded = self.selectedBackgroundNode.isHidden
+                self.selectedBackgroundView.isHidden = true
+                self.selectedBackgroundNode.isHidden = false
+                if wasAdded {
+                    self.selectedBackgroundNode.frame = selectedBackgroundFrame
+                } else {
+                    transition.updateFrame(node: self.selectedBackgroundNode, frame: selectedBackgroundFrame)
+                }
             }
             
             if let previousSelectedFrame = self.previousSelectedFrame {
@@ -981,11 +999,29 @@ public final class ChatListFilterTabContainerNode: ASDisplayNode {
             if abs(previousScrollBounds.minX - self.scrollNode.bounds.minX) > .ulpOfOne {
                 transition.animateHorizontalOffsetAdditive(node: self.scrollNode, offset: previousScrollBounds.minX - self.scrollNode.bounds.minX)
             }
+            if #available(iOS 26.0, *) {
+                let visibleSelectedBackgroundFrame = selectedBackgroundFrame.offsetBy(dx: -self.scrollNode.bounds.minX, dy: 0.0)
+                ComponentTransition(transition).setAlpha(view: self.liquidLensView, alpha: 1.0)
+                self.liquidLensView.update(
+                    size: backgroundSize,
+                    cornerRadius: backgroundSize.height * 0.5,
+                    selectionOrigin: visibleSelectedBackgroundFrame.origin,
+                    selectionSize: visibleSelectedBackgroundFrame.size,
+                    inset: 4.0,
+                    isDark: presentationData.theme.overallDarkAppearance,
+                    isLifted: false,
+                    transition: ComponentTransition(transition).withUserData(LiquidLensView.TransitionInfo(disableAnimationWorkarounds: false))
+                )
+            } else {
+                self.liquidLensView.alpha = 0.0
+            }
             
             self.previousSelectedAbsFrame = selectedFrame.offsetBy(dx: -self.scrollNode.bounds.minX, dy: 0.0)
             self.previousSelectedFrame = selectedFrame
         } else {
             self.selectedBackgroundNode.isHidden = true
+            self.selectedBackgroundView.isHidden = true
+            ComponentTransition(transition).setAlpha(view: self.liquidLensView, alpha: 0.0)
             self.previousSelectedAbsFrame = nil
             self.previousSelectedFrame = nil
         }

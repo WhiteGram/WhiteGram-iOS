@@ -16,6 +16,46 @@ import TopMessageReactions
 import ChatMessagePaymentAlertController
 
 extension ChatControllerImpl {
+    func forwardMessagesToSavedMessages(messages: [Message]) {
+        guard !messages.isEmpty else {
+            return
+        }
+
+        let reactionItems: Signal<[ReactionItem], NoError> = tagMessageReactions(context: self.context, subPeerId: nil)
+        var correlationIds: [Int64] = []
+        let mappedMessages = messages.map { message -> EnqueueMessage in
+            let correlationId = Int64.random(in: Int64.min ... Int64.max)
+            correlationIds.append(correlationId)
+            return .forward(source: message.id, threadId: nil, grouping: .auto, attributes: [], correlationId: correlationId)
+        }
+
+        let _ = (reactionItems
+        |> deliverOnMainQueue).startStandalone(next: { [weak self] reactionItems in
+            guard let self else {
+                return
+            }
+
+            let presentationData = self.context.sharedContext.currentPresentationData.with { $0 }
+            self.present(UndoOverlayController(presentationData: presentationData, content: .forward(savedMessages: true, text: messages.count == 1 ? presentationData.strings.Conversation_ForwardTooltip_SavedMessages_One : presentationData.strings.Conversation_ForwardTooltip_SavedMessages_Many), elevatedLayout: false, position: .top, animateInAsReplacement: true, action: { [weak self] value in
+                if case .info = value, let self {
+                    let _ = (self.context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: self.context.account.peerId))
+                    |> deliverOnMainQueue).startStandalone(next: { [weak self] peer in
+                        guard let self, let peer, let navigationController = self.effectiveNavigationController else {
+                            return
+                        }
+
+                        self.context.sharedContext.navigateToChatController(NavigateToChatControllerParams(navigationController: navigationController, context: self.context, chatLocation: .peer(peer), keepStack: .always, purposefulAction: {}, peekData: nil, forceOpenChat: true))
+                    })
+                    return true
+                }
+                return false
+            }, additionalView: chatShareToSavedMessagesAdditionalView(self, reactionItems: reactionItems, correlationIds: correlationIds)), in: .current)
+        })
+
+        let _ = (enqueueMessages(account: self.context.account, peerId: self.context.account.peerId, messages: mappedMessages)
+        |> deliverOnMainQueue).startStandalone()
+    }
+
     func forwardMessages(messageIds: [MessageId], options: ChatInterfaceForwardOptionsState? = nil, resetCurrent: Bool = false) {
         let _ = (self.context.engine.data.get(EngineDataMap(
             messageIds.map(TelegramEngine.EngineData.Item.Messages.Message.init)

@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import AsyncDisplayKit
 import TelegramCore
+import TelegramUIPreferences
 import AccountContext
 import ChatPresentationInterfaceState
 import ChatInputPanelNode
@@ -86,6 +87,10 @@ func inputPanelForChatPresentationIntefaceState(_ chatPresentationInterfaceState
     }
     
     if case .standard(.embedded) = chatPresentationInterfaceState.mode {
+        return (nil, nil)
+    }
+
+    if let channel = chatPresentationInterfaceState.renderedPeer?.peer as? TelegramChannel, case .broadcast = channel.info, !WhiteGramChatSettings.current.channelBottomPanel, chatPresentationInterfaceState.interfaceState.editMessage == nil, !channel.hasPermission(.sendSomething) {
         return (nil, nil)
     }
     

@@ -4,6 +4,7 @@ import Display
 import WebKit
 import SwiftSignalKit
 import TelegramCore
+import TelegramUIPreferences
 
 private let findActiveElementY = """
 function getOffset(el) {
@@ -145,6 +146,7 @@ final class WebAppWebView: WKWebView {
         
         let videoScript = WKUserScript(source: videoSource, injectionTime: .atDocumentStart, forMainFrameOnly: false)
         contentController.addUserScript(videoScript)
+        whiteGramInstallWebTrackerBlocker(into: contentController)
         
         configuration.userContentController = contentController
         

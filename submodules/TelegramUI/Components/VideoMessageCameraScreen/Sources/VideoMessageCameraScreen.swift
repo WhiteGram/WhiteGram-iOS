@@ -947,7 +947,7 @@ public class VideoMessageCameraScreen: ViewController {
             self.previewContainerView.addSubview(self.previewContainerContentView)
                         
             let isDualCameraEnabled = Camera.isDualCameraSupported(forRoundVideo: true)
-            let isFrontPosition = "".isEmpty
+            let isFrontPosition = controller.initialFrontCamera
             
             self.mainPreviewView = CameraSimplePreviewView(frame: .zero, main: true, roundVideo: true)
             self.additionalPreviewView = CameraSimplePreviewView(frame: .zero, main: false, roundVideo: true)
@@ -1640,6 +1640,7 @@ public class VideoMessageCameraScreen: ViewController {
     private let inputPanelFrame: (CGRect, Bool)
     fileprivate var allowLiveUpload: Bool
     fileprivate var viewOnceAvailable: Bool
+    fileprivate let initialFrontCamera: Bool
     
     fileprivate let completion: (EnqueueMessage?, Bool?, Int32?) -> Void
     
@@ -1792,6 +1793,7 @@ public class VideoMessageCameraScreen: ViewController {
         updatedPresentationData: (initial: PresentationData, signal: Signal<PresentationData, NoError>)?,
         allowLiveUpload: Bool,
         viewOnceAvailable: Bool,
+        initialFrontCamera: Bool = true,
         inputPanelFrame: (CGRect, Bool),
         chatNode: ASDisplayNode?,
         completion: @escaping (EnqueueMessage?, Bool?, Int32?) -> Void
@@ -1800,6 +1802,7 @@ public class VideoMessageCameraScreen: ViewController {
         self.updatedPresentationData = updatedPresentationData
         self.allowLiveUpload = allowLiveUpload
         self.viewOnceAvailable = viewOnceAvailable
+        self.initialFrontCamera = initialFrontCamera
         self.inputPanelFrame = inputPanelFrame
         self.chatNode = chatNode
         self.completion = completion

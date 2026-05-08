@@ -1084,8 +1084,13 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
                 }
             }
             
+            let useWideChannelPostLayout = whiteGramShouldUseWideChannelPostLayout(message: message)
+
             switch sizeCalculation {
                 case let .constrained(constrainedSize):
+                    if useWideChannelPostLayout && !isSticker && !isGift && !additionalWidthConstrainment {
+                        maxDimensions = CGSize(width: constrainedSize.width, height: maxHeight)
+                    }
                     if isSticker || isGift {
                         nativeSize = unboundSize.aspectFittedOrSmaller(constrainedSize)
                     } else {
@@ -1094,7 +1099,7 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
                             constrainedSize.width = min(constrainedSize.width, unboundSize.width)
                             constrainedSize.height = min(constrainedSize.height, unboundSize.height)
                         }
-                        if unboundSize.width > unboundSize.height || additionalWidthConstrainment {
+                        if useWideChannelPostLayout || unboundSize.width > unboundSize.height || additionalWidthConstrainment {
                             nativeSize = unboundSize.aspectFitted(constrainedSize)
                         } else {
                             nativeSize = unboundSize.aspectFitted(CGSize(width: constrainedSize.height, height: constrainedSize.width))

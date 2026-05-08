@@ -691,7 +691,7 @@ public final class ChatMessageAttachedContentNode: ASDisplayNode {
                 var dateReplies = 0
                 var starsCount: Int64?
                 var dateReactionsAndPeers = mergedMessageReactionsAndPeers(accountPeerId: context.account.peerId, accountPeer: associatedData.accountPeer, message: message)
-                if message.isRestricted(platform: "ios", contentSettings: context.currentContentSettings.with { $0 }) || presentationData.isPreview {
+                if message.isRestricted(platform: "ios", contentSettings: context.currentContentSettings.with { $0 }) || presentationData.isPreview || whiteGramShouldHideChannelPostReactions(message: message) {
                     dateReactionsAndPeers = ([], [])
                 }
                 for attribute in message.attributes {

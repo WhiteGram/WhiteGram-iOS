@@ -3724,6 +3724,7 @@ private func dataSearchableItems(context: AccountContext) -> [SettingsSearchable
 private func proxySearchableItems(context: AccountContext, servers: [ProxyServerSettings]) -> [SettingsSearchableItem] {
     let icon: SettingsSearchableItemIcon = .proxy
     let strings = context.sharedContext.currentPresentationData.with { $0 }.strings
+    let connectionTitle = strings.baseLanguageCode.lowercased().hasPrefix("ru") ? "Соединение" : "Connection"
     
     let presentProxySettings: (AccountContext, (SettingsSearchableItemPresentation, ViewController?) -> Void, ProxySettingsEntryTag?) -> Void = { context, present, itemTag in
         present(.push, proxySettingsController(context: context, focusOnItemTag: itemTag))
@@ -3733,7 +3734,7 @@ private func proxySearchableItems(context: AccountContext, servers: [ProxyServer
     items.append(
         SettingsSearchableItem(
             id: "data/proxy",
-            title: strings.Settings_Proxy,
+            title: connectionTitle,
             alternate: synonyms(strings.SettingsSearch_Synonyms_Proxy_Title),
             icon: icon,
             breadcrumbs: [],
@@ -3768,7 +3769,7 @@ private func proxySearchableItems(context: AccountContext, servers: [ProxyServer
             title: strings.SocksProxySetup_AddProxy,
             alternate: synonyms(strings.SettingsSearch_Synonyms_Proxy_AddProxy),
             icon: icon,
-            breadcrumbs: [strings.Settings_Proxy],
+            breadcrumbs: [connectionTitle],
             present: { context, _, present in
                 present(.modal, proxyServerSettingsController(context: context))
             }
@@ -3785,27 +3786,6 @@ private func proxySearchableItems(context: AccountContext, servers: [ProxyServer
         )
     )
 
-    var hasSocksServers = false
-    for server in servers {
-        if case .socks5 = server.connection {
-            hasSocksServers = true
-            break
-        }
-    }
-    if hasSocksServers {
-        items.append(
-            SettingsSearchableItem(
-                id: "data/proxy/use-for-calls",
-                title: strings.SocksProxySetup_UseForCalls,
-                alternate: synonyms(strings.SettingsSearch_Synonyms_Proxy_UseForCalls),
-                icon: icon,
-                breadcrumbs: [strings.Settings_Proxy],
-                present: { context, _, present in
-                    presentProxySettings(context, present, .useForCalls)
-                }
-            )
-        )
-    }
     return items
 }
 

@@ -907,7 +907,7 @@ public final class ChatMessageInteractiveFileNode: ASDisplayNode {
                     var dateReplies = 0
                     var starsCount: Int64?
                     var dateReactionsAndPeers = mergedMessageReactionsAndPeers(accountPeerId: arguments.context.account.peerId, accountPeer: arguments.associatedData.accountPeer, message: arguments.topMessage)
-                    if arguments.topMessage.isRestricted(platform: "ios", contentSettings: arguments.context.currentContentSettings.with { $0 }) || arguments.presentationData.isPreview {
+                    if arguments.topMessage.isRestricted(platform: "ios", contentSettings: arguments.context.currentContentSettings.with { $0 }) || arguments.presentationData.isPreview || whiteGramShouldHideChannelPostReactions(message: arguments.topMessage) {
                         dateReactionsAndPeers = ([], [])
                     }
                     for attribute in arguments.message.attributes {

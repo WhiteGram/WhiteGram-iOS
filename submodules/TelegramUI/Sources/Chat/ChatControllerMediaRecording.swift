@@ -147,7 +147,7 @@ extension ChatControllerImpl {
         }
     }
     
-    func requestVideoRecorder() {
+    func requestVideoRecorder(initialFrontCamera: Bool = true) {
         if self.videoRecorderValue == nil {
             if let currentInputPanelFrame = self.chatDisplayNode.currentInputPanelFrame() {
                 if self.recorderFeedback == nil {
@@ -180,6 +180,7 @@ extension ChatControllerImpl {
                     updatedPresentationData: self.updatedPresentationData,
                     allowLiveUpload: allowLiveUpload,
                     viewOnceAvailable: viewOnceAvailable,
+                    initialFrontCamera: initialFrontCamera,
                     inputPanelFrame: (currentInputPanelFrame, self.chatDisplayNode.inputNode != nil),
                     chatNode: self.chatDisplayNode.historyNode,
                     completion: { [weak self] message, silentPosting, scheduleTime in

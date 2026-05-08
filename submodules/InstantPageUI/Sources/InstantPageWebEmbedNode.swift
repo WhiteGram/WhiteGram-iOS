@@ -5,6 +5,7 @@ import WebKit
 import AsyncDisplayKit
 import Display
 import TelegramPresentationData
+import TelegramUIPreferences
 
 private class WeakInstantPageWebEmbedNodeMessageHandler: NSObject, WKScriptMessageHandler {
     private let f: (WKScriptMessage) -> ()
@@ -51,6 +52,7 @@ final class InstantPageWebEmbedNode: ASDisplayNode, InstantPageNode {
                 strongSelf.handleScriptMessage(message)
             }
         }, name: "performAction")
+        whiteGramInstallWebTrackerBlocker(into: userController)
         
         configuration.userContentController = userController
         

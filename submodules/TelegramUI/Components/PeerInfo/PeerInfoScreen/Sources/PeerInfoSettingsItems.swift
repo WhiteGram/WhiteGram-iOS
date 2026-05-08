@@ -164,7 +164,8 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
         } else {
             proxyType = presentationData.strings.Settings_ProxyDisabled
         }
-        items[.proxy]!.append(PeerInfoScreenDisclosureItem(id: 0, label: .text(proxyType), text: presentationData.strings.Settings_Proxy, icon: PresentationResourcesSettings.proxy, action: {
+        let connectionTitle = presentationData.strings.baseLanguageCode.lowercased().hasPrefix("ru") ? "Соединение" : "Connection"
+        items[.proxy]!.append(PeerInfoScreenDisclosureItem(id: 0, label: .text(proxyType), text: connectionTitle, icon: PresentationResourcesSettings.proxy, action: {
             interaction.openSettings(.proxy)
         }))
         items[.proxy]!.append(PeerInfoScreenDisclosureItem(id: 1, text: "WhiteGram", icon: PresentationResourcesSettings.whiteGram, action: {
