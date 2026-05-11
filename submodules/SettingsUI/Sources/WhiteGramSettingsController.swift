@@ -28,6 +28,7 @@ private enum WhiteGramSettingsCategory: Int32, CaseIterable {
     case chatFolders
     case stories
     case media
+    case contextMenu
     case other
     
     var title: String {
@@ -42,6 +43,8 @@ private enum WhiteGramSettingsCategory: Int32, CaseIterable {
             return "Истории"
         case .media:
             return "Медиа"
+        case .contextMenu:
+            return "Контекстные меню"
         case .other:
             return "Другие"
         }
@@ -60,6 +63,8 @@ private enum WhiteGramSettingsCategory: Int32, CaseIterable {
         case .media:
             return PresentationResourcesSettings.photosBlue
         case .other:
+            return PresentationResourcesSettings.settings
+        case .contextMenu:
             return PresentationResourcesSettings.settings
         }
     }
@@ -123,6 +128,7 @@ public func whiteGramSettingsController(context: AccountContext) -> ViewControll
     
     let arguments = WhiteGramSettingsArguments(
         openCategory: { category in
+            print("WhiteGram category tapped:", category)
             switch category {
             case .tabs:
                 pushController?(whiteGramTabsSettingsController(context: context))
@@ -132,8 +138,12 @@ public func whiteGramSettingsController(context: AccountContext) -> ViewControll
                 pushController?(whiteGramChatFoldersSettingsController(context: context))
             case .stories:
                 pushController?(whiteGramStorySettingsController(context: context))
-            default:
+            case .media:
                 break
+            case .contextMenu:
+                pushController?(whiteGramContextMenusSettingsController(context: context))
+            case .other:
+                pushController?(whiteGramOtherSettingsController(context: context))
             }
         }
     )

@@ -68,3 +68,7 @@ local_path_override(
     module_name = "sourcekit_bazel_bsp",
     path = "build-system/bazel-rules/sourcekit-bazel-bsp",
 )
+
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+bazel_dep(name = "rules_cc", version = "0.2.14")
