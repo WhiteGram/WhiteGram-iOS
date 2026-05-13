@@ -29,37 +29,18 @@ The following release build command is currently in use:
 
 ```bash
 ./build-input/bazel-8.4.2-darwin-x86_64 build Telegram/Telegram \
-
---announce_rc \
-
---features=swift.use_global_module_cache \
-
---verbose_failures \
-
---remote_cache_async \
-
---define=buildNumber=100005 \
-
---disk_cache=/private/tmp/telegram-bazel-cache \
-
--c opt \
-
---ios_multi_cpus=arm64 \
-
---watchos_cpus=arm64_32 \
-
---apple_generate_dsym \
-
---output_groups=+dsyms \
-
---features=swift.opt_uses_wmo \
-
---features=swift.opt_uses_osize \
---features=dead_strip \
-
---objc_enable_binary_stripping \
-
---/Telegram:disableExtensions
+  --announce_rc \
+  --features=swift.use_global_module_cache \
+  --verbose_failures \
+  --remote_cache_async \
+  --define=buildNumber=1 \
+  --disk_cache="$HOME/telegram-bazel-cache" \
+  -c opt \
+  --ios_multi_cpus=arm64 \
+  --watchos_cpus=arm64_32 \
+  --//Telegram:disableExtensions \
+  --@build_bazel_rules_swift//swift:copt="-j" \
+  --@build_bazel_rules_swift//swift:copt="6"
 ```
 
 The resulting IPA file is generated at:
