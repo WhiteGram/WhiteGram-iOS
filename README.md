@@ -1,6 +1,6 @@
 # WhiteGram
 
-WhiteGram is an unofficial Telegram iOS client with extra chat, channel, story, proxy, browser, and interface settings.
+WhiteGram is an unofficial Telegram iOS client with a redesigned proxy system and the ability to customize the interface.
 
 For the project description, feature list, IPA build command, and sideloading notes, see [WHITEGRAM_README.md](WHITEGRAM_README.md).
 

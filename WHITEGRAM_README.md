@@ -1,48 +1,68 @@
-# WhiteGram
+## WhiteGram
 
-WhiteGram is an unofficial Telegram iOS client based on Telegram iOS source code. The project keeps the core Telegram experience, while adding practical customization options, automatic proxy handling, interface tweaks, and controls for channels, chats, stories, and web behavior.
+WhiteGram is an unofficial Telegram client for iOS, based on the Telegram source code for iOS. The project retains the main features of Telegram, while adding customization of the interface, including chats, channels, stories, translation, transcriptions, as well as automatic proxy processing.
 
-## Main Features
+## Main functions
 
 - WhiteGram settings section inside the app.
-- Chat and channel customization controls.
-- Channel options for bottom panel visibility, wide posts, swipe behavior, reactions, and double-tap actions.
-- Story options for hiding stories, disabling story creation, disabling recording swipe, and asking before story viewing.
-- Automatic MTProxy bootstrap from a remote proxy list.
-- Faster proxy refresh and failover logic for unavailable or slow-connecting proxies.
-- Web and browser behavior tweaks.
-- Custom app icons and WhiteGram branding.
-- Sideload-friendly startup fallback when App Groups are unavailable.
 
-## Proxy Behavior
+- Chat and channel settings.
 
-WhiteGram can fetch MTProxy servers automatically from a remote source and keep the list updated while the app is running. The proxy bootstrap checks candidate servers, stores available proxies, and switches away from unavailable or slow-connecting servers when auto-connect is enabled.
+- Channel options for displaying the bottom panel, wide posts, swipe behavior, reactions and double-tap actions on messages and posts
 
-## Building IPA
+- Story options for hiding stories, disabling story creation, disabling swipe recording, and requesting confirmation before viewing a story.
 
-The currently used release build command is:
+- Automatic download of MTProxy from the list of public proxies.
+
+- Faster proxy update and logic for switching to a backup server when the proxy is unavailable or slow.
+
+- Custom application icons and WhiteGram brand symbols.
+
+## Proxy behavior
+
+WhiteGram can automatically receive MTProxy servers from a remote source and keep the list up to date while the application is running. The proxy download process checks potential servers, saves available proxies, and switches to unavailable or slow-connecting servers when auto-connectivity is enabled. It also removes unused proxies from a remote source.
+
+
+## Build an IPA
+
+The following release build command is currently in use:
 
 ```bash
 ./build-input/bazel-8.4.2-darwin-x86_64 build Telegram/Telegram \
-  --announce_rc \
-  --features=swift.use_global_module_cache \
-  --verbose_failures \
-  --remote_cache_async \
-  --define=buildNumber=100005 \
-  --disk_cache=/private/tmp/telegram-bazel-cache \
-  -c opt \
-  --ios_multi_cpus=arm64 \
-  --watchos_cpus=arm64_32 \
-  --apple_generate_dsym \
-  --output_groups=+dsyms \
-  --features=swift.opt_uses_wmo \
-  --features=swift.opt_uses_osize \
-  --features=dead_strip \
-  --objc_enable_binary_stripping \
-  --//Telegram:disableExtensions
+
+--announce_rc \
+
+--features=swift.use_global_module_cache \
+
+--verbose_failures \
+
+--remote_cache_async \
+
+--define=buildNumber=100005 \
+
+--disk_cache=/private/tmp/telegram-bazel-cache \
+
+-c opt \
+
+--ios_multi_cpus=arm64 \
+
+--watchos_cpus=arm64_32 \
+
+--apple_generate_dsym \
+
+--output_groups=+dsyms \
+
+--features=swift.opt_uses_wmo \
+
+--features=swift.opt_uses_osize \
+--features=dead_strip \
+
+--objc_enable_binary_stripping \
+
+--/Telegram:disableExtensions
 ```
 
-The resulting IPA is generated at:
+The resulting IPA file is generated at:
 
 ```text
 bazel-bin/Telegram/Telegram.ipa
@@ -55,16 +75,16 @@ mkdir -p build-artifacts/release-ipa
 cp -f bazel-bin/Telegram/Telegram.ipa build-artifacts/release-ipa/Telegram.ipa
 ```
 
-## Sideloading Notes
+## Installation notes from third-party sources
 
-The IPA can be installed with tools such as Sideloadly. If the app is signed with a free Apple ID, Push Notifications are not expected to work because iOS requires the `aps-environment` entitlement from a provisioning profile with Push Notifications enabled.
+The IPA file can be installed using tools such as Sideloadly. If the app is signed with a free Apple ID, it is expected that push notifications will not work because iOS requires the `aps-environment` permission from the provisioning profile with push notifications enabled.
 
-For reliable push notifications, the IPA must be signed with a provisioning profile that includes:
+For reliable push notifications, the IPA must be signed using a provisioning profile that includes:
 
 ```text
 aps-environment
 ```
 
-## Disclaimer
+## Disclaimer of liability
 
-WhiteGram is an unofficial Telegram client. Telegram is a trademark of Telegram FZ-LLC. This project is not affiliated with or endorsed by Telegram.
+WhiteGram is an unofficial Telegram client. Telegram is a trademark of Telegram FZ-LLC. This project is not affiliated with Telegram and is not supported by it.
