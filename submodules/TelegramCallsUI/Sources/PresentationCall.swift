@@ -36,6 +36,7 @@ public final class PresentationCallImpl: PresentationCall {
     public var isVideoPossible: Bool
     private let enableStunMarking: Bool
     private let enableTCP: Bool
+    private let forceTcpCalls: Bool
     public let preferredVideoCodec: String?
     public let peer: EnginePeer?
     
@@ -197,6 +198,7 @@ public final class PresentationCallImpl: PresentationCall {
         isVideoPossible: Bool,
         enableStunMarking: Bool,
         enableTCP: Bool,
+        forceTcpCalls: Bool,
         preferredVideoCodec: String?
     ) {
         self.context = context
@@ -232,6 +234,7 @@ public final class PresentationCallImpl: PresentationCall {
         self.isVideoPossible = isVideoPossible
         self.enableStunMarking = enableStunMarking
         self.enableTCP = enableTCP
+        self.forceTcpCalls = forceTcpCalls
         self.preferredVideoCodec = preferredVideoCodec
         self.peer = peer
         self.isVideo = startWithVideo
@@ -1217,7 +1220,7 @@ public final class PresentationCallImpl: PresentationCall {
                                 contextAudioSessionActive = self.audioSessionActive.get()
                             }
                             
-                            let ongoingContext = OngoingCallContext(account: self.context.account, callSessionManager: self.callSessionManager, callId: id, internalId: self.internalId, proxyServer: proxyServer, initialNetworkType: self.currentNetworkType, updatedNetworkType: self.updatedNetworkType, serializedData: self.serializedData, dataSaving: dataSaving, key: key, isOutgoing: sessionState.isOutgoing, video: self.videoCapturer, connections: updatedConnections, maxLayer: maxLayer, version: version, customParameters: customParameters, allowP2P: allowsP2P, enableTCP: self.enableTCP, enableStunMarking: self.enableStunMarking, audioSessionActive: contextAudioSessionActive, logName: logName, preferredVideoCodec: self.preferredVideoCodec, audioDevice: self.sharedAudioContext?.audioDevice)
+                            let ongoingContext = OngoingCallContext(account: self.context.account, callSessionManager: self.callSessionManager, callId: id, internalId: self.internalId, proxyServer: proxyServer, initialNetworkType: self.currentNetworkType, updatedNetworkType: self.updatedNetworkType, serializedData: self.serializedData, dataSaving: dataSaving, key: key, isOutgoing: sessionState.isOutgoing, video: self.videoCapturer, connections: updatedConnections, maxLayer: maxLayer, version: version, customParameters: customParameters, allowP2P: allowsP2P, enableTCP: self.enableTCP, forceTcpCalls: self.forceTcpCalls, enableStunMarking: self.enableStunMarking, audioSessionActive: contextAudioSessionActive, logName: logName, preferredVideoCodec: self.preferredVideoCodec, audioDevice: self.sharedAudioContext?.audioDevice)
                             self.ongoingContext = ongoingContext
                             ongoingContext.setIsMuted(self.isMutedValue)
                             if let requestedVideoAspect = self.requestedVideoAspect {

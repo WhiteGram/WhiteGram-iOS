@@ -3,6 +3,7 @@ import SwiftSignalKit
 import CoreMedia
 import AVFoundation
 import TelegramCore
+import TelegramUIPreferences
 import TelegramAudio
 import UniversalMediaPlayer
 import AccountContext
@@ -30,6 +31,16 @@ private func audioRecorderNativeStreamDescription(sampleRate: Float64) -> AudioS
 private var nextRecorderContextId: Int32 = 0
 private func getNextRecorderContextId() -> Int32 {
     return OSAtomicIncrement32(&nextRecorderContextId)
+}
+
+private func whiteGramSetBuiltInMicrophoneIfNeeded() {
+    guard WhiteGramOtherSettings.current.forceDeviceMicrophone else {
+        return
+    }
+    guard let input = AVAudioSession.sharedInstance().availableInputs?.first(where: { $0.portType == .builtInMic }) else {
+        return
+    }
+    try? AVAudioSession.sharedInstance().setPreferredInput(input)
 }
 
 private final class RecorderContextHolder {
@@ -440,6 +451,7 @@ final class ManagedAudioRecorderContext {
             self.audioSessionDisposable = self.mediaManager.audioSession.push(audioSessionType: .record(speaker: self.beginWithTone, video: false, withOthers: false), activate: { [weak self] state in
                 queue.async {
                     if let strongSelf = self, !strongSelf.paused {
+                        whiteGramSetBuiltInMicrophoneIfNeeded()
                         strongSelf.hasAudioSession = true
                         strongSelf.setupAudioUnit()
                         strongSelf.audioSessionAcquired(headset: state.isHeadsetConnected)

@@ -678,8 +678,11 @@ extension ChatControllerImpl {
             }
         }
         
-        if #available(iOS 18.0, *) {
-            if engineExperimentalInternalTranslationService == nil, let hostView = self.context.sharedContext.mainWindow?.hostView {
+        if WhiteGramOtherSettings.current.translationService == .gTranslate {
+            engineExperimentalInternalTranslationService = ExperimentalGoogleTranslationServiceImpl()
+        } else {
+            engineExperimentalInternalTranslationService = nil
+            if #available(iOS 18.0, *), let hostView = self.context.sharedContext.mainWindow?.hostView {
                 let translationService = ExperimentalInternalTranslationServiceImpl(view: hostView.containerView)
                 engineExperimentalInternalTranslationService = translationService
             }

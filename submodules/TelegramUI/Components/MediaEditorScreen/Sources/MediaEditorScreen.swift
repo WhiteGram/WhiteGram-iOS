@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import AVFoundation
 import CoreServices
 import Display
 import AsyncDisplayKit
@@ -11,6 +12,7 @@ import TelegramPresentationData
 import AccountContext
 import Postbox
 import TelegramCore
+import TelegramUIPreferences
 import MultilineTextComponent
 import DrawingUI
 import MediaEditor
@@ -52,6 +54,16 @@ import SaveProgressScreen
 import TelegramNotices
 import AttachmentFileController
 import SaveToCameraRoll
+
+private func whiteGramSetBuiltInMicrophoneIfNeeded() {
+    guard WhiteGramOtherSettings.current.forceDeviceMicrophone else {
+        return
+    }
+    guard let input = AVAudioSession.sharedInstance().availableInputs?.first(where: { $0.portType == .builtInMic }) else {
+        return
+    }
+    try? AVAudioSession.sharedInstance().setPreferredInput(input)
+}
 
 private let playbackButtonTag = GenericComponentViewTag()
 private let muteButtonTag = GenericComponentViewTag()
@@ -6922,6 +6934,7 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
         }
         if needsAudioSession {
             self.audioSessionDisposable = self.context.sharedContext.mediaManager.audioSession.push(audioSessionType: .record(speaker: false, video: true, withOthers: true), activate: { _ in
+                whiteGramSetBuiltInMicrophoneIfNeeded()
                 if #available(iOS 13.0, *) {
                     try? AVAudioSession.sharedInstance().setAllowHapticsAndSystemSoundsDuringRecording(true)
                 }

@@ -214,7 +214,7 @@ final class ChatTranslationPanelNode: ASDisplayNode {
         }
         let isPremium = info.isPremium
         
-        var translationAvailable = isPremium
+        var translationAvailable = isPremium || WhiteGramOtherSettings.current.autoTranslate || WhiteGramOtherSettings.current.translationButton
         if case let .channel(channel) = info.peer, channel.flags.contains(.autoTranslateEnabled) {
             translationAvailable = true
         }
@@ -233,7 +233,7 @@ final class ChatTranslationPanelNode: ASDisplayNode {
         
         let isPremium = info.isPremium
         
-        var translationAvailable = isPremium
+        var translationAvailable = isPremium || WhiteGramOtherSettings.current.autoTranslate || WhiteGramOtherSettings.current.translationButton
         if case let .channel(channel) = info.peer, channel.flags.contains(.autoTranslateEnabled) {
             translationAvailable = true
         }

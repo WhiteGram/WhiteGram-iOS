@@ -2182,11 +2182,13 @@ extension ChatControllerImpl {
                         if counterAndTimestamp.0 >= 3 {
                             maybeSuggestPremium = true
                         }
-                        if (isPremium || maybeSuggestPremium || hasAutoTranslate) && !isHidden {
+                        let whiteGramOtherSettings = WhiteGramOtherSettings.current
+                        let whiteGramTranslationEnabled = whiteGramOtherSettings.autoTranslate || whiteGramOtherSettings.translationButton
+                        if (isPremium || maybeSuggestPremium || hasAutoTranslate || whiteGramTranslationEnabled) && !isHidden {
                             return chatTranslationState(context: context, peerId: peerId, threadId: chatLocation.threadId)
                             |> map { translationState -> ChatPresentationTranslationState? in
                                 if let translationState, !translationState.fromLang.isEmpty && (translationState.fromLang != baseLanguageCode || translationState.isEnabled) {
-                                    return ChatPresentationTranslationState(isEnabled: translationState.isEnabled, fromLang: translationState.fromLang, toLang: translationState.toLang ?? baseLanguageCode)
+                                    return ChatPresentationTranslationState(isEnabled: translationState.isEnabled, fromLang: translationState.fromLang, toLang: whiteGramOtherSettings.autoTranslate ? baseLanguageCode : (translationState.toLang ?? baseLanguageCode))
                                 } else {
                                     return nil
                                 }

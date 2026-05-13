@@ -13,11 +13,11 @@ public struct WhiteGramChatSettings: Codable, Equatable {
         public var title: String {
             switch self {
             case .front:
-                return "Фронтальная"
+                return "Front"
             case .back:
-                return "Задняя"
+                return "Back"
             case .ask:
-                return "Спрашивать"
+                return "Ask"
             }
         }
     }
@@ -40,23 +40,23 @@ public struct WhiteGramChatSettings: Codable, Equatable {
         public var title: String {
             switch self {
             case .savedMessages:
-                return "Избранное"
+                return "Saved Messages"
             case .reaction:
-                return "Реакция"
+                return "Reaction"
             case .edit:
-                return "Редактировать сообщение"
+                return "Edit Message"
             case .forward:
-                return "Переслать"
+                return "Forward"
             case .reply:
-                return "Ответить"
+                return "Reply"
             case .pin:
-                return "Закрепить / открепить"
+                return "Pin / Unpin"
             case .select:
-                return "Выбрать"
+                return "Select"
             case .copy:
-                return "Скопировать"
+                return "Copy"
             case .contextMenu:
-                return "Открыть контекстное меню"
+                return "Open Context Menu"
             }
         }
     }
@@ -77,19 +77,19 @@ public struct WhiteGramChatSettings: Codable, Equatable {
         public var title: String {
             switch self {
             case .savedMessages:
-                return "Добавить в Избранное"
+                return "Add to Saved Messages"
             case .reaction:
-                return "Реакция"
+                return "Reaction"
             case .forward:
-                return "Переслать"
+                return "Forward"
             case .reply:
-                return "Ответить"
+                return "Reply"
             case .select:
-                return "Выбрать"
+                return "Select"
             case .copy:
-                return "Скопировать"
+                return "Copy"
             case .contextMenu:
-                return "Открыть контекстное меню"
+                return "Open Context Menu"
             }
         }
     }

@@ -45,7 +45,7 @@ private final class TranslateButtonContentComponent: CombinedComponent {
                     name: component.icon,
                     tintColor: component.theme.list.itemPrimaryTextColor
                 ),
-                availableSize: CGSize(width: 30.0, height: 30.0),
+                availableSize: CGSize(width: 22.0, height: 22.0),
                 transition: context.transition
             )
 

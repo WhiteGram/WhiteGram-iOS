@@ -157,6 +157,33 @@ private func automaticProxyMergedServers(existing: [ProxyServerSettings], fetche
     return result
 }
 
+private func automaticProxyManualServers(settings: ProxySettings, fetchedServers: [ProxyServerSettings]) -> [ProxyServerSettings] {
+    let automaticSet = Set(settings.automaticServers)
+    let fetchedSet = Set(fetchedServers)
+    let migrateLegacyAutomaticServers = automaticSet.isEmpty && settings.autoConnectOnLaunch && settings.servers.count >= automaticProxyStoredServerLimit / 2
+    return settings.servers.filter { server in
+        if automaticSet.contains(server) {
+            return false
+        }
+        if fetchedSet.contains(server) {
+            return false
+        }
+        if migrateLegacyAutomaticServers, case .mtp = server.connection, automaticProxyHostIsDomainName(server.host) {
+            return false
+        }
+        return true
+    }
+}
+
+private func automaticProxyCleanupActiveServer(settings: inout ProxySettings) {
+    if let activeServer = settings.activeServer, !settings.servers.contains(activeServer) {
+        settings.activeServer = nil
+        if settings.enabled && !settings.autoConnectOnLaunch {
+            settings.enabled = false
+        }
+    }
+}
+
 private func automaticProxySortedAvailableServers(candidates: [ProxyServerSettings], statuses: [ProxyServerSettings: ProxyServerStatus], excluding excludedServer: ProxyServerSettings? = nil) -> [ProxyServerSettings] {
     var availableServers: [(ProxyServerSettings, Double)] = []
     for server in candidates {
@@ -302,11 +329,14 @@ private final class AutomaticProxyBootstrapContext {
         
         let _ = (updateProxySettingsInteractively(accountManager: self.accountManager, { settings in
             var settings = settings
-            settings.servers = automaticProxyMergedServers(existing: fetchedServers, fetched: settings.servers.filter { !automaticProxyHostIsIPAddress($0.host) })
+            let manualServers = automaticProxyManualServers(settings: settings, fetchedServers: fetchedServers)
+            settings.servers = automaticProxyMergedServers(existing: fetchedServers, fetched: manualServers)
+            settings.automaticServers = fetchedServers
             if let activeServer = settings.activeServer, automaticProxyHostIsIPAddress(activeServer.host) {
                 settings.activeServer = nil
                 settings.enabled = false
             }
+            automaticProxyCleanupActiveServer(settings: &settings)
             return settings
         })).start()
     }
@@ -332,7 +362,11 @@ private final class AutomaticProxyBootstrapContext {
         
         let _ = (updateProxySettingsInteractively(accountManager: self.accountManager, { settings in
             var settings = settings
+            let automaticSet = Set(settings.automaticServers)
             let existingServers = settings.servers.filter { server in
+                if automaticSet.contains(server) && !fetchedSet.contains(server) {
+                    return false
+                }
                 if fetchedSet.contains(server), case .notAvailable? = statuses[server] {
                     return false
                 }
@@ -340,9 +374,11 @@ private final class AutomaticProxyBootstrapContext {
             }
             let mergedServers = automaticProxyMergedServers(existing: autoAvailableServers, fetched: existingServers)
             settings.servers = mergedServers
+            settings.automaticServers = settings.automaticServers.filter { fetchedSet.contains($0) }
             if settings.enabled && settings.autoConnectOnLaunch {
                 settings.activeServer = automaticProxySortedAvailableServers(candidates: mergedServers, statuses: statuses).first
             }
+            automaticProxyCleanupActiveServer(settings: &settings)
             return settings
         })).start()
     }
@@ -443,6 +479,9 @@ private final class AutomaticProxyBootstrapContext {
                 return settings
             }
             settings.servers = automaticProxyMergedServers(existing: settings.servers, fetched: [bestServer])
+            if self.currentFetchedServers.contains(bestServer) && !settings.automaticServers.contains(bestServer) {
+                settings.automaticServers.append(bestServer)
+            }
             settings.activeServer = bestServer
             return settings
         })).start()

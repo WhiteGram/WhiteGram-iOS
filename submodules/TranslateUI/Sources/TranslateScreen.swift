@@ -130,7 +130,7 @@ private final class SheetContent: CombinedComponent {
         
         fileprivate var moreBackgroundImage: (CGSize, UIImage, UIColor)?
         
-        private let useAlternativeTranslation: Bool
+        private let translationService: WhiteGramOtherTranslationService
         
         weak var controller: TranslateScreen?
         
@@ -143,15 +143,7 @@ private final class SheetContent: CombinedComponent {
             self.expand = expand
             self.availableSpeakLanguages = supportedSpeakLanguages()
             
-            let translationConfiguration = TranslationConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
-            var useAlternativeTranslation = false
-            switch translationConfiguration.manual {
-            case .alternative:
-                useAlternativeTranslation = true
-            default:
-                break
-            }
-            self.useAlternativeTranslation = useAlternativeTranslation
+            self.translationService = WhiteGramOtherSettings.current.translationService
             
             super.init()
                         
@@ -172,10 +164,14 @@ private final class SheetContent: CombinedComponent {
         }
         
         func translate(text: String, entities: [MessageTextEntity], fromLang: String?, toLang: String) -> Signal<(String, [MessageTextEntity])?, TranslationError> {
-            if self.useAlternativeTranslation {
+            switch self.translationService {
+            case .gTranslate:
                 return alternativeTranslateText(text: text, fromLang: fromLang, toLang: toLang)
-            } else {
+            case .telegram:
                 return self.context.engine.messages.translate(text: text, toLang: toLang, entities: entities, tone: self.tone)
+                |> `catch` { _ -> Signal<(String, [MessageTextEntity])?, TranslationError> in
+                    return alternativeTranslateText(text: text, fromLang: fromLang, toLang: toLang)
+                }
             }
         }
         
@@ -1191,26 +1187,11 @@ public func presentTranslateScreen(
     wasDismissed: (() -> Void)? = nil,
     display: (ViewController) -> Void
 ) {
-    let translationConfiguration = TranslationConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
-    var useSystemTranslation = false
-    switch translationConfiguration.manual {
-    case .system:
-        if #available(iOS 18.0, *) {
-            useSystemTranslation = true
-        }
-    default:
-        break
-    }
-    
-    if useSystemTranslation {
-        presentSystemTranslateScreen(context: context, text: text)
-    } else {
-        let controller = TranslateScreen(context: context, text: text, entities: entities, canCopy: canCopy, fromLanguage: fromLanguage, toLanguage: toLanguage, ignoredLanguages: ignoredLanguages, replaceText: replaceText, translateChat: translateChat)
-        controller.pushController = pushController
-        controller.presentController = presentController
-        controller.wasDismissed = wasDismissed
-        display(controller)
-    }
+    let controller = TranslateScreen(context: context, text: text, entities: entities, canCopy: canCopy, fromLanguage: fromLanguage, toLanguage: toLanguage, ignoredLanguages: ignoredLanguages, replaceText: replaceText, translateChat: translateChat)
+    controller.pushController = pushController
+    controller.presentController = presentController
+    controller.wasDismissed = wasDismissed
+    display(controller)
 }
 
 private func presentSystemTranslateScreen(context: AccountContext, text: String) {

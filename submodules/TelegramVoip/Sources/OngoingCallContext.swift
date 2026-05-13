@@ -795,6 +795,27 @@ public final class OngoingCallContextPresentationCallVideoView {
     }
 }
 
+private func updatedCallCustomParameters(
+    _ customParameters: String?,
+    forceTcpCalls: Bool
+) -> String? {
+    guard forceTcpCalls else {
+        return customParameters
+    }
+    
+    var parameters: [String: Any] = [:]
+    if let customParameters, let data = customParameters.data(using: .utf8), let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+        parameters = value
+    }
+    parameters["network_use_tcponly"] = true
+    
+    guard let data = try? JSONSerialization.data(withJSONObject: parameters, options: []), let result = String(data: data, encoding: .utf8) else {
+        return customParameters
+    }
+    return result
+}
+
+
 public final class OngoingCallContext {
     public struct AuxiliaryServer {
         public enum Connection {
@@ -911,7 +932,7 @@ public final class OngoingCallContext {
         return result
     }
 
-    public init(account: Account, callSessionManager: CallSessionManager, callId: CallId, internalId: CallSessionInternalId, proxyServer: ProxyServerSettings?, initialNetworkType: NetworkType, updatedNetworkType: Signal<NetworkType, NoError>, serializedData: String?, dataSaving: VoiceCallDataSaving, key: Data, isOutgoing: Bool, video: OngoingCallVideoCapturer?, connections: CallSessionConnectionSet, maxLayer: Int32, version: String, customParameters: String?, allowP2P: Bool, enableTCP: Bool, enableStunMarking: Bool, audioSessionActive: Signal<Bool, NoError>, logName: String, preferredVideoCodec: String?, audioDevice: AudioDevice?) {
+    public init(account: Account, callSessionManager: CallSessionManager, callId: CallId, internalId: CallSessionInternalId, proxyServer: ProxyServerSettings?, initialNetworkType: NetworkType, updatedNetworkType: Signal<NetworkType, NoError>, serializedData: String?, dataSaving: VoiceCallDataSaving, key: Data, isOutgoing: Bool, video: OngoingCallVideoCapturer?, connections: CallSessionConnectionSet, maxLayer: Int32, version: String, customParameters: String?, allowP2P: Bool, enableTCP: Bool, forceTcpCalls: Bool, enableStunMarking: Bool, audioSessionActive: Signal<Bool, NoError>, logName: String, preferredVideoCodec: String?, audioDevice: AudioDevice?) {
         let _ = setupLogs
         
         self.callId = callId
@@ -939,6 +960,10 @@ public final class OngoingCallContext {
             if let strongSelf = self {
                 var allowP2P = allowP2P
                 
+                if forceTcpCalls {
+                    allowP2P = false
+                }
+                
                 var voipProxyServer: VoipProxyServerWebrtc?
                 if let proxyServer = proxyServer {
                     switch proxyServer.connection {
@@ -951,21 +976,6 @@ public final class OngoingCallContext {
                 
                 var unfilteredConnections: [CallSessionConnection]
                 unfilteredConnections = [connections.primary] + connections.alternatives
-                
-                if version == "12.0.0" {
-                    for connection in unfilteredConnections {
-                        if case let .reflector(reflector) = connection {
-                            unfilteredConnections.append(.reflector(CallSessionConnection.Reflector(
-                                id: 123456,
-                                ip: "91.108.9.38",
-                                ipv6: "",
-                                isTcp: true,
-                                port: 595,
-                                peerTag: reflector.peerTag
-                            )))
-                        }
-                    }
-                }
                 
                 var reflectorIdList: [Int64] = []
                 for connection in unfilteredConnections {
@@ -988,24 +998,28 @@ public final class OngoingCallContext {
                 
                 var processedConnections: [CallSessionConnection] = []
                 var filteredConnections: [OngoingCallConnectionDescriptionWebrtc] = []
+                
                 connectionsLoop: for connection in unfilteredConnections {
                     if processedConnections.contains(connection) {
                         continue
                     }
+                    
                     processedConnections.append(connection)
                     
                     switch connection {
                     case let .reflector(reflector):
-                        if reflector.isTcp {
-                            if version == "12.0.0" {
-                                /*if signalingReflector == nil {
-                                    signalingReflector = OngoingCallConnectionDescriptionWebrtc(reflectorId: 0, hasStun: false, hasTurn: true, hasTcp: true, ip: reflector.ip, port: reflector.port, username: "reflector", password: hexString(reflector.peerTag))
-                                }*/
-                            } else {
-                                if signalingReflector == nil {
-                                    signalingReflector = OngoingCallConnectionDescriptionWebrtc(reflectorId: 0, hasStun: false, hasTurn: true, hasTcp: true, ip: reflector.ip, port: reflector.port, username: "reflector", password: hexString(reflector.peerTag))
-                                }
-                                
+                        if reflector.isTcp && signalingReflector == nil {
+                            signalingReflector = OngoingCallConnectionDescriptionWebrtc(
+                                reflectorId: 0,
+                                hasStun: false,
+                                hasTurn: true,
+                                hasTcp: true,
+                                ip: reflector.ip,
+                                port: reflector.port,
+                                username: "reflector",
+                                password: hexString(reflector.peerTag)
+                            )
+                            if !forceTcpCalls {
                                 continue connectionsLoop
                             }
                         }
@@ -1015,6 +1029,9 @@ public final class OngoingCallContext {
                     
                     var webrtcConnections: [OngoingCallConnectionDescriptionWebrtc] = []
                     for connection in callConnectionDescriptionsWebrtc(connection, idMapping: reflectorIdMapping) {
+                        if forceTcpCalls && !connection.hasTcp {
+                            continue
+                        }
                         webrtcConnections.append(connection)
                     }
                     
@@ -1024,7 +1041,7 @@ public final class OngoingCallContext {
                 if let signalingReflector = signalingReflector {
                     if #available(iOS 12.0, *) {
                         let peerTag = dataWithHexString(signalingReflector.password)
-                        
+
                         strongSelf.signalingConnectionManager = QueueLocalObject(queue: queue, generate: {
                             return CallSignalingConnectionManager(queue: queue, peerTag: peerTag, servers: [signalingReflector], dataReceived: { data in
                                 guard let strongSelf = self else {
@@ -1039,7 +1056,7 @@ public final class OngoingCallContext {
                         })
                     }
                 }
-                
+
                 var directConnection: OngoingCallDirectConnection?
                 if version == "9.0.0" && !"".isEmpty {
                     if #available(iOS 12.0, *) {
@@ -1054,35 +1071,6 @@ public final class OngoingCallContext {
                     directConnection = nil
                 }
                 
-                if enableTCP {
-                    filteredConnections = filteredConnections.filter { connection in
-                        return connection.hasTcp
-                    }
-                    allowP2P = false
-                }
-                
-                #if DEBUG && true
-                var customParameters = customParameters
-                if let initialCustomParameters = try? JSONSerialization.jsonObject(with: (customParameters ?? "{}").data(using: .utf8)!) as? [String: Any] {
-                    var customParametersValue: [String: Any]
-                    customParametersValue = initialCustomParameters
-                    if version == "12.0.0" {
-                        customParametersValue["network_use_tcponly"] = true as NSNumber
-                        customParameters = String(data: try! JSONSerialization.data(withJSONObject: customParametersValue), encoding: .utf8)!
-                    }
-                    
-                    if let value = customParametersValue["network_use_tcponly"] as? Bool, value {
-                        filteredConnections = filteredConnections.filter { connection in
-                            if connection.hasTcp {
-                                return true
-                            }
-                            return false
-                        }
-                        allowP2P = false
-                    }
-                }
-                #endif
-                
                 /*#if DEBUG
                 if let initialCustomParameters = try? JSONSerialization.jsonObject(with: (customParameters ?? "{}").data(using: .utf8)!) as? [String: Any] {
                     var customParametersValue: [String: Any]
@@ -1092,9 +1080,32 @@ public final class OngoingCallContext {
                 }
                 #endif*/
                 
+                let effectiveCustomParameters = updatedCallCustomParameters(
+                    customParameters,
+                    forceTcpCalls: forceTcpCalls
+                )
+                
+                if forceTcpCalls {
+                    Logger.shared.log(
+                        "TGVOIP",
+                        "Force TCP calls: enabled, enableTCP=\(enableTCP), allowP2P=\(allowP2P), connections=\(filteredConnections.count)"
+                    )
+                    
+                    if filteredConnections.isEmpty {
+                        Logger.shared.log("TGVOIP", "Force TCP calls: no TCP call connections were provided")
+                    } else {
+                        for connection in filteredConnections {
+                            Logger.shared.log(
+                                "TGVOIP",
+                                "Force TCP calls: connection tcp=\(connection.hasTcp), turn=\(connection.hasTurn), stun=\(connection.hasStun), ip=\(connection.ip), port=\(connection.port)"
+                            )
+                        }
+                    }
+                }
+                
                 let context = OngoingCallThreadLocalContextWebrtc(
                     version: version,
-                    customParameters: customParameters,
+                    customParameters: effectiveCustomParameters,
                     queue: OngoingCallThreadLocalContextQueueImpl(queue: queue),
                     proxy: voipProxyServer,
                     networkType: ongoingNetworkTypeForTypeWebrtc(initialNetworkType),
@@ -1105,7 +1116,7 @@ public final class OngoingCallContext {
                     connections: filteredConnections,
                     maxLayer: maxLayer,
                     allowP2P: allowP2P,
-                    allowTCP: enableTCP,
+                    allowTCP: enableTCP || forceTcpCalls,
                     enableStunMarking: enableStunMarking,
                     logPath: logPath,
                     statsLogPath: tempStatsLogPath,

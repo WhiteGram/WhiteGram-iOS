@@ -5,6 +5,7 @@ import SwiftSignalKit
 import AccountContext
 import NaturalLanguage
 import TelegramCore
+import TelegramUIPreferences
 import SwiftUI
 import Translation
 import Combine
@@ -147,7 +148,7 @@ public func effectiveIgnoredTranslationLanguages(context: AccountContext, ignore
     if baseLang.hasSuffix(rawSuffix) {
         baseLang = String(baseLang.dropLast(rawSuffix.count))
     }
-    
+
     var dontTranslateLanguages = Set<String>()
     if let ignoredLanguages = ignoredLanguages {
         dontTranslateLanguages = Set(ignoredLanguages)
@@ -172,6 +173,11 @@ public func normalizeTranslationLanguage(_ code: String) -> String {
 }
 
 public func canTranslateChats(context: AccountContext) -> Bool {
+    let whiteGramOtherSettings = WhiteGramOtherSettings.current
+    if whiteGramOtherSettings.autoTranslate || whiteGramOtherSettings.translationButton {
+        return true
+    }
+
     let translationConfiguration = TranslationConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
     var chatTranslationAvailable = true
     switch translationConfiguration.auto {
@@ -189,12 +195,15 @@ public func canTranslateChats(context: AccountContext) -> Bool {
 }
 
 public func canTranslateText(context: AccountContext, text: String, showTranslate: Bool, showTranslateIfTopical: Bool = false, ignoredLanguages: [String]?) -> (canTranslate: Bool, language: String?) {
-    guard showTranslate || showTranslateIfTopical, text.count > 0 else {
+    let whiteGramOtherSettings = WhiteGramOtherSettings.current
+    let effectiveShowTranslate = whiteGramOtherSettings.translationButton
+
+    guard effectiveShowTranslate, text.count > 0 else {
         return (false, nil)
     }
 
     let translationConfiguration = TranslationConfiguration.with(appConfiguration: context.currentAppConfiguration.with { $0 })
-    var translateButtonAvailable = false
+    var translateButtonAvailable = whiteGramOtherSettings.translationButton || whiteGramOtherSettings.translationService == .gTranslate
     switch translationConfiguration.manual {
     case .enabled, .alternative:
         translateButtonAvailable = true
@@ -205,26 +214,26 @@ public func canTranslateText(context: AccountContext, text: String, showTranslat
     default:
         break
     }
-    
-    let showTranslate = showTranslate && translateButtonAvailable
-        
+
+    let showTranslate = effectiveShowTranslate && translateButtonAvailable
+
     if #available(iOS 12.0, *) {
         if context.sharedContext.immediateExperimentalUISettings.disableLanguageRecognition {
             return (true, nil)
         }
-                
+
         let dontTranslateLanguages = effectiveIgnoredTranslationLanguages(context: context, ignoredLanguages: ignoredLanguages)
-        
+
         let text = String(text.prefix(64))
         languageRecognizer.processString(text)
         let hypotheses = languageRecognizer.languageHypotheses(withMaximum: 3)
         languageRecognizer.reset()
-        
+
         var supportedTranslationLanguages = supportedTranslationLanguages
         if !showTranslate && showTranslateIfTopical {
             supportedTranslationLanguages = ["uk", "ru"]
         }
-                
+
         let filteredLanguages = hypotheses.filter { supportedTranslationLanguages.contains(normalizeTranslationLanguage($0.key.rawValue)) }.sorted(by: { $0.value > $1.value })
         if let language = filteredLanguages.first {
             let languageCode = normalizeTranslationLanguage(language.key.rawValue)
@@ -259,12 +268,12 @@ private struct TranslationViewImpl: View {
     @State private var configuration: TranslationSession.Configuration?
     @ObservedObject var externalCondition: ExternalTranslationTrigger
     private let taskContainer: Atomic<ExperimentalInternalTranslationServiceImpl.TranslationTaskContainer>
-    
+
     init(externalCondition: ExternalTranslationTrigger, taskContainer: Atomic<ExperimentalInternalTranslationServiceImpl.TranslationTaskContainer>) {
         self.externalCondition = externalCondition
         self.taskContainer = taskContainer
     }
-    
+
     var body: some View {
         Text("ABC")
         .onChange(of: self.externalCondition.shouldInvalidate) { _ in
@@ -275,7 +284,7 @@ private struct TranslationViewImpl: View {
                     return nil
                 }
             }
-            
+
             if let firstTaskLanguagePair {
                 if let configuration = self.configuration, configuration.source?.languageCode?.identifier == firstTaskLanguagePair.0, configuration.target?.languageCode?.identifier == firstTaskLanguagePair.1 {
                     self.configuration?.invalidate()
@@ -296,11 +305,11 @@ private struct TranslationViewImpl: View {
                     return nil
                 }
             }
-            
+
             guard let task else {
                 return
             }
-            
+
             do {
                 var nextClientIdentifier: Int = 0
                 var clientIdentifierMap: [String: AnyHashable] = [:]
@@ -310,7 +319,7 @@ private struct TranslationViewImpl: View {
                     clientIdentifierMap["\(id)"] = key
                     return TranslationSession.Request(sourceText: value, clientIdentifier: "\(id)")
                 }
-                
+
                 let responses = try await session.translations(from: translationRequests)
                 var resultMap: [AnyHashable: String] = [:]
                 for response in responses {
@@ -318,13 +327,13 @@ private struct TranslationViewImpl: View {
                         resultMap[originalKey] = "\(response.targetText)"
                     }
                 }
-                
+
                 task.completion(resultMap)
             } catch let e {
                 print("Translation error: \(e)")
                 task.completion(nil)
             }
-            
+
             let firstTaskLanguagePair = self.taskContainer.with { taskContainer -> (String, String)? in
                 if let firstTask = taskContainer.tasks.first {
                     return (firstTask.fromLang, firstTask.toLang)
@@ -332,7 +341,7 @@ private struct TranslationViewImpl: View {
                     return nil
                 }
             }
-            
+
             if let firstTaskLanguagePair {
                 if let configuration = self.configuration, configuration.source?.languageCode?.identifier == firstTaskLanguagePair.0, configuration.target?.languageCode?.identifier == firstTaskLanguagePair.1 {
                     self.configuration?.invalidate()
@@ -355,7 +364,7 @@ public final class ExperimentalInternalTranslationServiceImpl: ExperimentalInter
         let fromLang: String
         let toLang: String
         let completion: ([AnyHashable: String]?) -> Void
-        
+
         init(id: Int, texts: [AnyHashable: String], fromLang: String, toLang: String, completion: @escaping ([AnyHashable: String]?) -> Void) {
             self.id = id
             self.texts = texts
@@ -364,31 +373,31 @@ public final class ExperimentalInternalTranslationServiceImpl: ExperimentalInter
             self.completion = completion
         }
     }
-    
+
     fileprivate final class TranslationTaskContainer {
         var tasks: [TranslationTask] = []
-        
+
         init() {
         }
     }
-    
+
     private final class Impl {
         private let hostingController: UIViewController
-        
+
         private let taskContainer = Atomic(value: TranslationTaskContainer())
         private let taskTrigger = ExternalTranslationTrigger()
-        
+
         private var nextId: Int = 0
-        
+
         init(view: UIView) {
             self.hostingController = UIHostingController(rootView: TranslationViewImpl(
                 externalCondition: self.taskTrigger,
                 taskContainer: self.taskContainer
             ))
-            
+
             view.addSubview(self.hostingController.view)
         }
-        
+
         func translate(texts: [AnyHashable: String], fromLang: String, toLang: String, onResult: @escaping ([AnyHashable: String]?) -> Void) -> Disposable {
             let id = self.nextId
             self.nextId += 1
@@ -404,7 +413,7 @@ public final class ExperimentalInternalTranslationServiceImpl: ExperimentalInter
                 ))
             }
             self.taskTrigger.shouldInvalidate += 1
-            
+
             return ActionDisposable { [weak self] in
                 Queue.mainQueue().async {
                     guard let self else {
@@ -417,15 +426,15 @@ public final class ExperimentalInternalTranslationServiceImpl: ExperimentalInter
             }
         }
     }
-    
+
     private let impl: QueueLocalObject<Impl>
-    
+
     public init(view: UIView) {
         self.impl = QueueLocalObject(queue: .mainQueue(), generate: {
             return Impl(view: view)
         })
     }
-    
+
     public func translate(texts: [AnyHashable: String], fromLang: String, toLang: String) -> Signal<[AnyHashable: String]?, NoError> {
         return self.impl.signalWith { impl, subscriber in
             return impl.translate(texts: texts, fromLang: fromLang, toLang: toLang, onResult: { result in
@@ -436,81 +445,116 @@ public final class ExperimentalInternalTranslationServiceImpl: ExperimentalInter
     }
 }
 
+public final class ExperimentalGoogleTranslationServiceImpl: ExperimentalInternalTranslationService {
+    public init() {
+    }
+
+    public func translate(texts: [AnyHashable: String], fromLang: String, toLang: String) -> Signal<[AnyHashable: String]?, NoError> {
+        if texts.isEmpty {
+            return .single([:])
+        }
+
+        let signals = texts.map { key, text -> Signal<(AnyHashable, String)?, NoError> in
+            return alternativeTranslateText(text: text, fromLang: fromLang, toLang: toLang)
+            |> map { result -> (AnyHashable, String)? in
+                if let result {
+                    return (key, result.0)
+                } else {
+                    return nil
+                }
+            }
+            |> `catch` { _ -> Signal<(AnyHashable, String)?, NoError> in
+                return .single(nil)
+            }
+        }
+
+        return combineLatest(signals)
+        |> map { results -> [AnyHashable: String]? in
+            var mappedResults: [AnyHashable: String] = [:]
+            for result in results {
+                if let result {
+                    mappedResults[result.0] = result.1
+                }
+            }
+            return mappedResults.isEmpty ? nil : mappedResults
+        }
+    }
+}
+
 func alternativeTranslateText(text: String, fromLang: String?, toLang: String) -> Signal<(String, [MessageTextEntity])?, TelegramCore.TranslationError> {
     return Signal { subscriber in
         var task: URLSessionTask?
         Queue.concurrentDefaultQueue().async {
             let effectiveFromLang: String
-            if let fromLang {
-                effectiveFromLang = fromLang
+            if let fromLang, !fromLang.isEmpty {
+                effectiveFromLang = normalizeTranslationLanguage(fromLang)
             } else {
-                languageRecognizer.processString(text)
-                let hypotheses = languageRecognizer.languageHypotheses(withMaximum: 3)
-                languageRecognizer.reset()
-                
-                let filteredLanguages = hypotheses.filter { supportedTranslationLanguages.contains(normalizeTranslationLanguage($0.key.rawValue)) }.sorted(by: { $0.value > $1.value })
-                if let language = filteredLanguages.first {
-                    let languageCode = normalizeTranslationLanguage(language.key.rawValue)
-                    effectiveFromLang = languageCode
-                } else {
-                    effectiveFromLang = "en"
-                }
+                effectiveFromLang = "auto"
             }
-            
-            var uri = "https://translate.goo"
-            uri += "gleapis.com/transl"
-            uri += "ate_a"
-            uri += "/singl"
-            uri += "e?client=gtx&sl=\(effectiveFromLang.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-            uri += "&tl=\(toLang.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-            uri += "&dt=t&ie=UTF-8&oe=UTF-8&otf=1&ssel=0&tsel=0&kc=7&dt=at&dt=bd&dt=ex&dt=ld&dt=md&dt=qca&dt=rw&dt=rm&dt=ss&q="
-            uri += text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-            
-            guard let url = URL(string: uri) else {
+
+            var components = URLComponents()
+            components.scheme = "https"
+            components.host = "translate.googleapis.com"
+            components.path = "/translate_a/single"
+            components.queryItems = [
+                URLQueryItem(name: "client", value: "gtx"),
+                URLQueryItem(name: "sl", value: effectiveFromLang),
+                URLQueryItem(name: "tl", value: normalizeTranslationLanguage(toLang)),
+                URLQueryItem(name: "dt", value: "t"),
+                URLQueryItem(name: "ie", value: "UTF-8"),
+                URLQueryItem(name: "oe", value: "UTF-8"),
+                URLQueryItem(name: "otf", value: "1"),
+                URLQueryItem(name: "ssel", value: "0"),
+                URLQueryItem(name: "tsel", value: "0"),
+                URLQueryItem(name: "kc", value: "7"),
+                URLQueryItem(name: "q", value: text)
+            ]
+
+            guard let url = components.url else {
                 subscriber.putError(.generic)
                 return
             }
-            
+
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
             request.setValue(getRandomUserAgent(), forHTTPHeaderField: "User-Agent")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            
+
             task = URLSession.shared.dataTask(with: request) { data, response, error in
                 if let error = error {
                     print("Translation failed: \(error.localizedDescription)")
                     subscriber.putError(.generic)
                     return
                 }
-                
+
                 guard let httpResponse = response as? HTTPURLResponse else {
                     subscriber.putError(.generic)
                     return
                 }
-                
+
                 if httpResponse.statusCode != 200 {
                     print("Translation failed with status code: \(httpResponse.statusCode)")
                     let isRateLimit = httpResponse.statusCode == 429
                     subscriber.putError(isRateLimit ? .limitExceeded : .generic)
                     return
                 }
-                
+
                 guard let data = data else {
                     subscriber.putError(.generic)
                     return
                 }
-                
+
                 do {
                     guard let jsonArray = try JSONSerialization.jsonObject(with: data) as? [Any] else {
                         subscriber.putError(.generic)
                         return
                     }
-                    
+
                     guard let translationArray = jsonArray.first as? [Any] else {
                         subscriber.putError(.generic)
                         return
                     }
-                    
+
                     var result = ""
                     for element in translationArray {
                         if let translationBlock = element as? [Any],
@@ -520,11 +564,11 @@ func alternativeTranslateText(text: String, fromLang: String?, toLang: String) -
                             result += blockText
                         }
                     }
-                    
+
                     if text.hasPrefix("\n") {
                         result = "\n" + result
                     }
-                    
+
                     subscriber.putNext((result, []))
                     subscriber.putCompletion()
                 } catch {

@@ -8,114 +8,15 @@ import TelegramUIPreferences
 import ItemListUI
 import AccountContext
 
-private enum WhiteGramOtherTranslationService: String, CaseIterable {
-    case telegram
-    case gTranslate
-    
-    var title: String {
-        switch self {
-        case .telegram:
-            return "Telegram"
-        case .gTranslate:
-            return "GTranslate"
-        }
-    }
+private func whiteGramString(_ strings: PresentationStrings, ru: String, en: String) -> String {
+    return strings.baseLanguageCode.lowercased().hasPrefix("ru") ? ru : en
 }
 
-private enum WhiteGramOtherTranscriptionService: String, CaseIterable {
-    case telegram
-    case apple
-    
-    var title: String {
-        switch self {
-        case .telegram:
-            return "Telegram"
-        case .apple:
-            return "Apple"
-        }
-    }
+private func whiteGramString(_ presentationData: ItemListPresentationData, ru: String, en: String) -> String {
+    return whiteGramString(presentationData.strings, ru: ru, en: en)
 }
 
-private struct WhiteGramOtherSettingsState: Equatable {
-    var autoTranslate: Bool
-    var translationService: WhiteGramOtherTranslationService
-    var translationButton: Bool
-    
-    var voiceTranscription: Bool
-    var transcriptionService: WhiteGramOtherTranscriptionService
-    
-    var forceDeviceMicrophone: Bool
-    
-    var hideCameraInGallery: Bool
-    var hideCameraPreviewInGallery: Bool
-    
-    init() {
-        let defaults = UserDefaults.standard
-        
-        self.autoTranslate = defaults.object(forKey: "whitegram.other.autoTranslate") as? Bool ?? true
-        
-        if let rawValue = defaults.string(forKey: "whitegram.other.translationService"), let value = WhiteGramOtherTranslationService(rawValue: rawValue) {
-            self.translationService = value
-        } else {
-            self.translationService = .telegram
-        }
-        
-        self.translationButton = defaults.object(forKey: "whitegram.other.translationButton") as? Bool ?? true
-        
-        self.voiceTranscription = defaults.object(forKey: "whitegram.other.voiceTranscription") as? Bool ?? true
-        
-        if let rawValue = defaults.string(forKey: "whitegram.other.transcriptionService"), let value = WhiteGramOtherTranscriptionService(rawValue: rawValue) {
-            self.transcriptionService = value
-        } else {
-            self.transcriptionService = .telegram
-        }
-        
-        self.forceDeviceMicrophone = defaults.object(forKey: "whitegram.other.forceDeviceMicrophone") as? Bool ?? false
-        
-        self.hideCameraInGallery = defaults.object(forKey: "whitegram.other.hideCameraInGallery") as? Bool ?? false
-        self.hideCameraPreviewInGallery = defaults.object(forKey: "whitegram.other.hideCameraPreviewInGallery") as? Bool ?? false
-    }
-    
-    mutating func setAutoTranslate(_ value: Bool) {
-        self.autoTranslate = value
-        UserDefaults.standard.set(value, forKey: "whitegram.other.autoTranslate")
-    }
-    
-    mutating func setTranslationService(_ value: WhiteGramOtherTranslationService) {
-        self.translationService = value
-        UserDefaults.standard.set(value.rawValue, forKey: "whitegram.other.translationService")
-    }
-    
-    mutating func setTranslationButton(_ value: Bool) {
-        self.translationButton = value
-        UserDefaults.standard.set(value, forKey: "whitegram.other.translationButton")
-    }
-    
-    mutating func setVoiceTranscription(_ value: Bool) {
-        self.voiceTranscription = value
-        UserDefaults.standard.set(value, forKey: "whitegram.other.voiceTranscription")
-    }
-    
-    mutating func setTranscriptionService(_ value: WhiteGramOtherTranscriptionService) {
-        self.transcriptionService = value
-        UserDefaults.standard.set(value.rawValue, forKey: "whitegram.other.transcriptionService")
-    }
-    
-    mutating func setForceDeviceMicrophone(_ value: Bool) {
-        self.forceDeviceMicrophone = value
-        UserDefaults.standard.set(value, forKey: "whitegram.other.forceDeviceMicrophone")
-    }
-    
-    mutating func setHideCameraInGallery(_ value: Bool) {
-        self.hideCameraInGallery = value
-        UserDefaults.standard.set(value, forKey: "whitegram.other.hideCameraInGallery")
-    }
-    
-    mutating func setHideCameraPreviewInGallery(_ value: Bool) {
-        self.hideCameraPreviewInGallery = value
-        UserDefaults.standard.set(value, forKey: "whitegram.other.hideCameraPreviewInGallery")
-    }
-}
+private typealias WhiteGramOtherSettingsState = WhiteGramOtherSettings
 
 private enum WhiteGramOtherSettingsSection: Int32 {
     case translation
@@ -137,7 +38,7 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
     case forceDeviceMicrophone(Bool)
     
     case hideCameraInGallery(Bool)
-    case hideCameraPreviewInGallery(Bool)
+    case hideCameraPreviewInGallery(Bool, Bool)
     
     var section: ItemListSectionId {
         switch self {
@@ -235,9 +136,9 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
             }
             return false
             
-        case let .hideCameraPreviewInGallery(lhsValue):
-            if case let .hideCameraPreviewInGallery(rhsValue) = rhs {
-                return lhsValue == rhsValue
+        case let .hideCameraPreviewInGallery(lhsValue, lhsEnabled):
+            if case let .hideCameraPreviewInGallery(rhsValue, rhsEnabled) = rhs {
+                return lhsValue == rhsValue && lhsEnabled == rhsEnabled
             }
             return false
         }
@@ -262,8 +163,8 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(
                 presentationData: presentationData,
                 systemStyle: .glass,
-                title: "Включить авто-перевод",
-                text: "Включает автоматический перевод постов и сообщений без вашего участия.",
+                title: whiteGramString(presentationData, ru: "Включить автоперевод", en: "Enable Auto-Translate"),
+                text: whiteGramString(presentationData, ru: "Автоматически переводит посты и сообщения без дополнительных действий.", en: "Automatically translates posts and messages without any extra action."),
                 value: value,
                 sectionId: self.section,
                 style: .blocks,
@@ -277,7 +178,7 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
                 presentationData: presentationData,
                 systemStyle: .glass,
                 icon: nil,
-                title: "Сервис",
+                title: whiteGramString(presentationData, ru: "Сервис", en: "Service"),
                 label: value,
                 sectionId: self.section,
                 style: .blocks,
@@ -291,7 +192,7 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(
                 presentationData: presentationData,
                 systemStyle: .glass,
-                title: "Клавиша перевода",
+                title: whiteGramString(presentationData, ru: "Кнопка перевода", en: "Translate Button"),
                 value: value,
                 sectionId: self.section,
                 style: .blocks,
@@ -304,8 +205,8 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(
                 presentationData: presentationData,
                 systemStyle: .glass,
-                title: "Транскрипция",
-                text: "Включает или отключает функцию «Голос в текст».",
+                title: whiteGramString(presentationData, ru: "Транскрибация", en: "Transcription"),
+                text: whiteGramString(presentationData, ru: "Включает или отключает преобразование голоса в текст.", en: "Enables or disables voice-to-text."),
                 value: value,
                 sectionId: self.section,
                 style: .blocks,
@@ -319,7 +220,7 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
                 presentationData: presentationData,
                 systemStyle: .glass,
                 icon: nil,
-                title: "Сервис",
+                title: whiteGramString(presentationData, ru: "Сервис", en: "Service"),
                 label: value,
                 sectionId: self.section,
                 style: .blocks,
@@ -333,8 +234,8 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(
                 presentationData: presentationData,
                 systemStyle: .glass,
-                title: "Микрофон устройства",
-                text: "Запись будет идти с микрофона устройства, даже если подключены другие устройства записи.",
+                title: whiteGramString(presentationData, ru: "Микрофон устройства", en: "Device Microphone"),
+                text: whiteGramString(presentationData, ru: "Записывает с микрофона устройства, даже когда подключены другие устройства записи.", en: "Records from the device microphone even when other recording devices are connected."),
                 value: value,
                 sectionId: self.section,
                 style: .blocks,
@@ -347,8 +248,7 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(
                 presentationData: presentationData,
                 systemStyle: .glass,
-                title: "Камера в галерее",
-                text: "Отключает блок камеры в галерее.",
+                title: whiteGramString(presentationData, ru: "Камера в галерее", en: "Camera in Gallery"),
                 value: value,
                 sectionId: self.section,
                 style: .blocks,
@@ -357,13 +257,13 @@ private enum WhiteGramOtherSettingsEntry: ItemListNodeEntry {
                 }
             )
             
-        case let .hideCameraPreviewInGallery(value):
+        case let .hideCameraPreviewInGallery(value, enabled):
             return ItemListSwitchItem(
                 presentationData: presentationData,
                 systemStyle: .glass,
-                title: "Превью камеры в галерее",
-                text: "Превью камеры не показывает картинку с камеры.",
+                title: whiteGramString(presentationData, ru: "Превью камеры в галерее", en: "Camera Preview in Gallery"),
                 value: value,
+                enabled: enabled,
                 sectionId: self.section,
                 style: .blocks,
                 updated: { value in
@@ -408,24 +308,24 @@ private final class WhiteGramOtherSettingsArguments {
     }
 }
 
-private func whiteGramOtherSettingsEntries(state: WhiteGramOtherSettingsState) -> [WhiteGramOtherSettingsEntry] {
+private func whiteGramOtherSettingsEntries(strings: PresentationStrings, state: WhiteGramOtherSettingsState) -> [WhiteGramOtherSettingsEntry] {
     var entries: [WhiteGramOtherSettingsEntry] = []
     
-    entries.append(.header(.translation, "Перевод"))
+    entries.append(.header(.translation, whiteGramString(strings, ru: "Перевод", en: "Translation")))
     entries.append(.autoTranslate(state.autoTranslate))
     entries.append(.translationService(state.translationService.title))
     entries.append(.translationButton(state.translationButton))
     
-    entries.append(.header(.voiceToText, "Голос в текст"))
+    entries.append(.header(.voiceToText, whiteGramString(strings, ru: "Голос в текст", en: "Voice to Text")))
     entries.append(.voiceTranscription(state.voiceTranscription))
     entries.append(.transcriptionService(state.transcriptionService.title))
     
-    entries.append(.header(.voiceAndVideoRecording, "Запись голоса и видео"))
+    entries.append(.header(.voiceAndVideoRecording, whiteGramString(strings, ru: "Запись голоса и видео", en: "Voice and Video Recording")))
     entries.append(.forceDeviceMicrophone(state.forceDeviceMicrophone))
     
-    entries.append(.header(.gallery, "Галерея"))
-    entries.append(.hideCameraInGallery(state.hideCameraInGallery))
-    entries.append(.hideCameraPreviewInGallery(state.hideCameraPreviewInGallery))
+    entries.append(.header(.gallery, whiteGramString(strings, ru: "Галерея", en: "Gallery")))
+    entries.append(.hideCameraInGallery(!state.hideCameraInGallery))
+    entries.append(.hideCameraPreviewInGallery(!state.hideCameraPreviewInGallery, !state.hideCameraInGallery))
     
     return entries
 }
@@ -507,11 +407,14 @@ public func whiteGramOtherSettingsController(context: AccountContext) -> ViewCon
             statePromise.set(currentState)
         },
         updateHideCameraInGallery: { value in
-            currentState.setHideCameraInGallery(value)
+            currentState.setHideCameraInGallery(!value)
+            if !value {
+                currentState.setHideCameraPreviewInGallery(false)
+            }
             statePromise.set(currentState)
         },
         updateHideCameraPreviewInGallery: { value in
-            currentState.setHideCameraPreviewInGallery(value)
+            currentState.setHideCameraPreviewInGallery(!value)
             statePromise.set(currentState)
         }
     )
@@ -524,7 +427,7 @@ public func whiteGramOtherSettingsController(context: AccountContext) -> ViewCon
     |> map { presentationData, state -> (ItemListControllerState, (ItemListNodeState, WhiteGramOtherSettingsArguments)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
-            title: .text("Другие"),
+            title: .text(whiteGramString(presentationData.strings, ru: "Другие", en: "Other")),
             leftNavigationButton: nil,
             rightNavigationButton: nil,
             backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back),
@@ -533,7 +436,7 @@ public func whiteGramOtherSettingsController(context: AccountContext) -> ViewCon
         
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: whiteGramOtherSettingsEntries(state: state),
+            entries: whiteGramOtherSettingsEntries(strings: presentationData.strings, state: state),
             style: .blocks,
             animateChanges: true
         )
@@ -633,11 +536,11 @@ private final class WhiteGramOtherTranslationServiceSelectionArguments {
     }
 }
 
-private func whiteGramOtherTranslationServiceSelectionEntries(state: WhiteGramOtherSettingsState) -> [WhiteGramOtherTranslationServiceSelectionEntry] {
+private func whiteGramOtherTranslationServiceSelectionEntries(strings: PresentationStrings, state: WhiteGramOtherSettingsState) -> [WhiteGramOtherTranslationServiceSelectionEntry] {
     return [
         .service(.telegram, state.translationService == .telegram),
         .service(.gTranslate, state.translationService == .gTranslate),
-        .info("WhiteGram будет использовать GTranslate, если Telegram будет недоступен.")
+        .info(whiteGramString(strings, ru: "WhiteGram будет использовать Google Translate, если Telegram недоступен.", en: "WhiteGram will use Google Translate if Telegram is unavailable."))
     ]
 }
 
@@ -660,7 +563,7 @@ private func whiteGramOtherTranslationServiceController(
     |> map { presentationData, state -> (ItemListControllerState, (ItemListNodeState, WhiteGramOtherTranslationServiceSelectionArguments)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
-            title: .text("Сервис перевода"),
+            title: .text(whiteGramString(presentationData.strings, ru: "Сервис перевода", en: "Translation Service")),
             leftNavigationButton: nil,
             rightNavigationButton: nil,
             backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back),
@@ -669,7 +572,7 @@ private func whiteGramOtherTranslationServiceController(
         
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: whiteGramOtherTranslationServiceSelectionEntries(state: state),
+            entries: whiteGramOtherTranslationServiceSelectionEntries(strings: presentationData.strings, state: state),
             style: .blocks,
             animateChanges: true
         )
@@ -765,11 +668,11 @@ private final class WhiteGramOtherTranscriptionServiceSelectionArguments {
     }
 }
 
-private func whiteGramOtherTranscriptionServiceSelectionEntries(state: WhiteGramOtherSettingsState) -> [WhiteGramOtherTranscriptionServiceSelectionEntry] {
+private func whiteGramOtherTranscriptionServiceSelectionEntries(strings: PresentationStrings, state: WhiteGramOtherSettingsState) -> [WhiteGramOtherTranscriptionServiceSelectionEntry] {
     return [
         .service(.telegram, state.transcriptionService == .telegram),
         .service(.apple, state.transcriptionService == .apple),
-        .info("WhiteGram будет использовать Apple, если Telegram будет недоступен.")
+        .info(whiteGramString(strings, ru: "WhiteGram будет использовать Apple, если Telegram недоступен.", en: "WhiteGram will use Apple if Telegram is unavailable."))
     ]
 }
 
@@ -792,7 +695,7 @@ private func whiteGramOtherTranscriptionServiceController(
     |> map { presentationData, state -> (ItemListControllerState, (ItemListNodeState, WhiteGramOtherTranscriptionServiceSelectionArguments)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
-            title: .text("Сервис транскрипции"),
+            title: .text(whiteGramString(presentationData.strings, ru: "Сервис транскрибации", en: "Transcription Service")),
             leftNavigationButton: nil,
             rightNavigationButton: nil,
             backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back),
@@ -801,7 +704,7 @@ private func whiteGramOtherTranscriptionServiceController(
         
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: whiteGramOtherTranscriptionServiceSelectionEntries(state: state),
+            entries: whiteGramOtherTranscriptionServiceSelectionEntries(strings: presentationData.strings, state: state),
             style: .blocks,
             animateChanges: true
         )

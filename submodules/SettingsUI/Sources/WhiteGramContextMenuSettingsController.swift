@@ -8,6 +8,10 @@ import TelegramUIPreferences
 import ItemListUI
 import AccountContext
 
+private func whiteGramString(_ strings: PresentationStrings, ru: String, en: String) -> String {
+    return strings.baseLanguageCode.lowercased().hasPrefix("ru") ? ru : en
+}
+
 private enum WhiteGramContextMenusSettingsSection: Int32 {
     case chatList
     case privateAndGroups
@@ -15,131 +19,90 @@ private enum WhiteGramContextMenusSettingsSection: Int32 {
     case settings
 }
 
-private enum WhiteGramContextMenuOption: String, CaseIterable {
-    // Список чатов
-    case chatListFolder
-    case chatListMark
-    case chatListArchive
-    case chatListPin
-    case chatListMute
-    case chatListDelete
-    
-    // Внутри чатов — личные сообщения или группы
-    case privateReply
-    case privateCopy
-    case privateForward
-    case privateHideName
-    case privateDelete
-    case privateAddToFavorites
-    case privatePin
-    case privateRemove
-    case privateSelect
-    
-    // Внутри чатов — каналы
-    case channelReply
-    case channelCopy
-    case channelCopyLink
-    case channelForward
-    case channelHideName
-    case channelReport
-    case channelDelete
-    case channelSaveToFavorites
-    case channelPin
-    case channelRemove
-    case channelSelect
-    
-    // Настройки
-    case settingsSavedMessages
-    case settingsRecentCalls
-    case settingsDevices
-    case settingsChatFolders
-    case settingsPremium
-    case settingsStars
-    case settingsBusiness
-    case settingsGifts
-    case settingsHelp
-    case settingsFAQ
-    case settingsFeatures
-    
-    var title: String {
+private extension WhiteGramContextMenuOption {
+    func title(strings: PresentationStrings) -> String {
         switch self {
         case .chatListFolder:
-            return "Добавить или убрать в/из папки"
+            return whiteGramString(strings, ru: "Добавить или убрать в/из папки", en: "Add or Remove from Folder")
         case .chatListMark:
-            return "Пометить"
+            return whiteGramString(strings, ru: "Пометить", en: "Mark")
         case .chatListArchive:
-            return "Архивировать"
+            return whiteGramString(strings, ru: "Архивировать", en: "Archive")
         case .chatListPin:
-            return "Закрепить"
+            return whiteGramString(strings, ru: "Закрепить", en: "Pin")
         case .chatListMute:
-            return "Выкл. или вкл. уведомления"
+            return whiteGramString(strings, ru: "Выкл. или вкл. уведомления", en: "Mute or Unmute")
         case .chatListDelete:
-            return "Удалить"
+            return whiteGramString(strings, ru: "Удалить", en: "Delete")
             
         case .privateReply:
-            return "Ответить"
+            return whiteGramString(strings, ru: "Ответить", en: "Reply")
         case .privateCopy:
-            return "Скопировать"
+            return whiteGramString(strings, ru: "Скопировать", en: "Copy")
+        case .privateEdit:
+            return whiteGramString(strings, ru: "Редактировать", en: "Edit")
         case .privateForward:
-            return "Переслать"
+            return whiteGramString(strings, ru: "Переслать", en: "Forward")
         case .privateHideName:
-            return "Спрятать имя"
+            return whiteGramString(strings, ru: "Спрятать имя", en: "Hide Name")
         case .privateDelete:
-            return "Удалить"
+            return whiteGramString(strings, ru: "Удалить", en: "Delete")
         case .privateAddToFavorites:
-            return "Добавить в избранное"
+            return whiteGramString(strings, ru: "Добавить в избранное", en: "Add to Favorites")
         case .privatePin:
-            return "Закрепить"
+            return whiteGramString(strings, ru: "Закрепить", en: "Pin")
         case .privateRemove:
-            return "Удалить"
+            return whiteGramString(strings, ru: "Удалить", en: "Remove")
         case .privateSelect:
-            return "Выбрать"
+            return whiteGramString(strings, ru: "Выбрать", en: "Select")
             
         case .channelReply:
-            return "Ответить"
+            return whiteGramString(strings, ru: "Ответить", en: "Reply")
         case .channelCopy:
-            return "Скопировать"
+            return whiteGramString(strings, ru: "Скопировать", en: "Copy")
         case .channelCopyLink:
-            return "Скопировать ссылку"
+            return whiteGramString(strings, ru: "Скопировать ссылку", en: "Copy Link")
+        case .channelEdit:
+            return whiteGramString(strings, ru: "Редактировать", en: "Edit")
         case .channelForward:
-            return "Переслать"
+            return whiteGramString(strings, ru: "Переслать", en: "Forward")
         case .channelHideName:
-            return "Спрятать имя"
+            return whiteGramString(strings, ru: "Спрятать имя", en: "Hide Name")
         case .channelReport:
-            return "Пожаловаться"
+            return whiteGramString(strings, ru: "Пожаловаться", en: "Report")
         case .channelDelete:
-            return "Удалить"
+            return whiteGramString(strings, ru: "Удалить", en: "Delete")
         case .channelSaveToFavorites:
-            return "Сохранить в избранное"
+            return whiteGramString(strings, ru: "Сохранить в избранное", en: "Save to Favorites")
         case .channelPin:
-            return "Закрепить"
+            return whiteGramString(strings, ru: "Закрепить", en: "Pin")
         case .channelRemove:
-            return "Удалить"
+            return whiteGramString(strings, ru: "Удалить", en: "Remove")
         case .channelSelect:
-            return "Выбрать"
+            return whiteGramString(strings, ru: "Выбрать", en: "Select")
             
         case .settingsSavedMessages:
-            return "Избранное"
+            return whiteGramString(strings, ru: "Избранное", en: "Saved Messages")
         case .settingsRecentCalls:
-            return "Недавние звонки"
+            return whiteGramString(strings, ru: "Недавние звонки", en: "Recent Calls")
         case .settingsDevices:
-            return "Устройства"
+            return whiteGramString(strings, ru: "Устройства", en: "Devices")
         case .settingsChatFolders:
-            return "Папки с чатами"
+            return whiteGramString(strings, ru: "Папки с чатами", en: "Chat Folders")
         case .settingsPremium:
             return "Telegram Premium"
         case .settingsStars:
-            return "Мои звезды"
+            return whiteGramString(strings, ru: "Мои звезды", en: "My Stars")
         case .settingsBusiness:
-            return "Telegram для бизнеса"
+            return whiteGramString(strings, ru: "Telegram для бизнеса", en: "Telegram Business")
         case .settingsGifts:
             return "Telegram Gifts"
         case .settingsHelp:
-            return "Помощь"
+            return whiteGramString(strings, ru: "Помощь", en: "Help")
         case .settingsFAQ:
-            return "Вопросы о Telegram"
+            return whiteGramString(strings, ru: "Вопросы о Telegram", en: "Telegram FAQ")
         case .settingsFeatures:
-            return "Возможности Telegram"
+            return whiteGramString(strings, ru: "Возможности Telegram", en: "Telegram Features")
         }
     }
     
@@ -148,10 +111,10 @@ private enum WhiteGramContextMenuOption: String, CaseIterable {
         case .chatListFolder, .chatListMark, .chatListArchive, .chatListPin, .chatListMute, .chatListDelete:
             return .chatList
             
-        case .privateReply, .privateCopy, .privateForward, .privateHideName, .privateDelete, .privateAddToFavorites, .privatePin, .privateRemove, .privateSelect:
+        case .privateReply, .privateCopy, .privateEdit, .privateForward, .privateHideName, .privateDelete, .privateAddToFavorites, .privatePin, .privateRemove, .privateSelect:
             return .privateAndGroups
             
-        case .channelReply, .channelCopy, .channelCopyLink, .channelForward, .channelHideName, .channelReport, .channelDelete, .channelSaveToFavorites, .channelPin, .channelRemove, .channelSelect:
+        case .channelReply, .channelCopy, .channelCopyLink, .channelEdit, .channelForward, .channelHideName, .channelReport, .channelDelete, .channelSaveToFavorites, .channelPin, .channelRemove, .channelSelect:
             return .channels
             
         case .settingsSavedMessages, .settingsRecentCalls, .settingsDevices, .settingsChatFolders, .settingsPremium, .settingsStars, .settingsBusiness, .settingsGifts, .settingsHelp, .settingsFAQ, .settingsFeatures:
@@ -159,35 +122,13 @@ private enum WhiteGramContextMenuOption: String, CaseIterable {
         }
     }
     
-    var storageKey: String {
-        return "whitegram.contextMenus.\(self.rawValue)"
-    }
 }
 
-private struct WhiteGramContextMenusSettingsState: Equatable {
-    var values: [WhiteGramContextMenuOption: Bool]
-    
-    init() {
-        var values: [WhiteGramContextMenuOption: Bool] = [:]
-        
-        for option in WhiteGramContextMenuOption.allCases {
-            if UserDefaults.standard.object(forKey: option.storageKey) == nil {
-                values[option] = true
-            } else {
-                values[option] = UserDefaults.standard.bool(forKey: option.storageKey)
-            }
-        }
-        
-        self.values = values
-    }
-    
+private typealias WhiteGramContextMenusSettingsState = WhiteGramContextMenuSettings
+
+private extension WhiteGramContextMenuSettings {
     func value(_ option: WhiteGramContextMenuOption) -> Bool {
-        return self.values[option] ?? true
-    }
-    
-    mutating func setValue(_ value: Bool, for option: WhiteGramContextMenuOption) {
-        self.values[option] = value
-        UserDefaults.standard.set(value, forKey: option.storageKey)
+        return self.isEnabled(option)
     }
 }
 
@@ -257,7 +198,7 @@ private enum WhiteGramContextMenusSettingsEntry: ItemListNodeEntry {
             return ItemListSwitchItem(
                 presentationData: presentationData,
                 systemStyle: .glass,
-                title: option.title,
+                title: option.title(strings: presentationData.strings),
                 value: value,
                 sectionId: self.section,
                 style: .blocks,
@@ -269,10 +210,10 @@ private enum WhiteGramContextMenusSettingsEntry: ItemListNodeEntry {
     }
 }
 
-private func whiteGramContextMenusSettingsEntries(state: WhiteGramContextMenusSettingsState) -> [WhiteGramContextMenusSettingsEntry] {
+private func whiteGramContextMenusSettingsEntries(strings: PresentationStrings, state: WhiteGramContextMenusSettingsState) -> [WhiteGramContextMenusSettingsEntry] {
     var entries: [WhiteGramContextMenusSettingsEntry] = []
     
-    entries.append(.header(.chatList, "Список чатов"))
+    entries.append(.header(.chatList, whiteGramString(strings, ru: "Список чатов", en: "Chat List")))
     entries.append(.option(.chatListFolder, state.value(.chatListFolder)))
     entries.append(.option(.chatListMark, state.value(.chatListMark)))
     entries.append(.option(.chatListArchive, state.value(.chatListArchive)))
@@ -280,9 +221,10 @@ private func whiteGramContextMenusSettingsEntries(state: WhiteGramContextMenusSe
     entries.append(.option(.chatListMute, state.value(.chatListMute)))
     entries.append(.option(.chatListDelete, state.value(.chatListDelete)))
     
-    entries.append(.header(.privateAndGroups, "Внутри чатов — личные сообщения или группы"))
+    entries.append(.header(.privateAndGroups, whiteGramString(strings, ru: "Внутри чатов - личные сообщения или группы", en: "Inside Chats - Private Messages or Groups")))
     entries.append(.option(.privateReply, state.value(.privateReply)))
     entries.append(.option(.privateCopy, state.value(.privateCopy)))
+    entries.append(.option(.privateEdit, state.value(.privateEdit)))
     entries.append(.option(.privateForward, state.value(.privateForward)))
     entries.append(.option(.privateHideName, state.value(.privateHideName)))
     entries.append(.option(.privateDelete, state.value(.privateDelete)))
@@ -291,10 +233,11 @@ private func whiteGramContextMenusSettingsEntries(state: WhiteGramContextMenusSe
     entries.append(.option(.privateRemove, state.value(.privateRemove)))
     entries.append(.option(.privateSelect, state.value(.privateSelect)))
     
-    entries.append(.header(.channels, "Внутри чатов — каналы"))
+    entries.append(.header(.channels, whiteGramString(strings, ru: "Внутри чатов - каналы", en: "Inside Chats - Channels")))
     entries.append(.option(.channelReply, state.value(.channelReply)))
     entries.append(.option(.channelCopy, state.value(.channelCopy)))
     entries.append(.option(.channelCopyLink, state.value(.channelCopyLink)))
+    entries.append(.option(.channelEdit, state.value(.channelEdit)))
     entries.append(.option(.channelForward, state.value(.channelForward)))
     entries.append(.option(.channelHideName, state.value(.channelHideName)))
     entries.append(.option(.channelReport, state.value(.channelReport)))
@@ -304,7 +247,7 @@ private func whiteGramContextMenusSettingsEntries(state: WhiteGramContextMenusSe
     entries.append(.option(.channelRemove, state.value(.channelRemove)))
     entries.append(.option(.channelSelect, state.value(.channelSelect)))
     
-    entries.append(.header(.settings, "Настройки"))
+    entries.append(.header(.settings, whiteGramString(strings, ru: "Настройки", en: "Settings")))
     entries.append(.option(.settingsSavedMessages, state.value(.settingsSavedMessages)))
     entries.append(.option(.settingsRecentCalls, state.value(.settingsRecentCalls)))
     entries.append(.option(.settingsDevices, state.value(.settingsDevices)))
@@ -339,7 +282,7 @@ public func whiteGramContextMenusSettingsController(context: AccountContext) -> 
     |> map { presentationData, state -> (ItemListControllerState, (ItemListNodeState, WhiteGramContextMenusSettingsArguments)) in
         let controllerState = ItemListControllerState(
             presentationData: ItemListPresentationData(presentationData),
-            title: .text("Контекстные меню"),
+            title: .text(whiteGramString(presentationData.strings, ru: "Контекстные меню", en: "Context Menus")),
             leftNavigationButton: nil,
             rightNavigationButton: nil,
             backNavigationButton: ItemListBackButton(title: presentationData.strings.Common_Back),
@@ -348,7 +291,7 @@ public func whiteGramContextMenusSettingsController(context: AccountContext) -> 
         
         let listState = ItemListNodeState(
             presentationData: ItemListPresentationData(presentationData),
-            entries: whiteGramContextMenusSettingsEntries(state: state),
+            entries: whiteGramContextMenusSettingsEntries(strings: presentationData.strings, state: state),
             style: .blocks,
             animateChanges: true
         )

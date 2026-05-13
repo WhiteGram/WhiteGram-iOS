@@ -17,6 +17,7 @@ swift_library(
         "//submodules/TelegramCore",
         "//submodules/TelegramPresentationData",
         "//submodules/TelegramUIPreferences",
+        "//submodules/TranslateUI",
         "//submodules/TextFormat",
         "//submodules/AccountContext",
         "//submodules/TemporaryCachedPeerDataManager",

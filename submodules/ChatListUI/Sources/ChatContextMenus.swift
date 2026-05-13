@@ -112,6 +112,7 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                     }
 
                     var items: [ContextMenuItem] = []
+                    let whiteGramContextMenuSettings = WhiteGramContextMenuSettings.current
 
                     if case let .search(search) = source {
                         switch search {
@@ -202,7 +203,8 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                         var hasRemoveFromFolder = false
                         if case let .chatList(currentFilter) = source {
                             if let currentFilter = currentFilter, case let .filter(id, title, emoticon, data) = currentFilter {
-                                items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_RemoveFromFolder, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/RemoveFromFolder"), color: theme.contextMenu.primaryColor) }, action: { c, _ in
+                                if whiteGramContextMenuSettings.isEnabled(.chatListFolder) {
+                                    items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_RemoveFromFolder, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/RemoveFromFolder"), color: theme.contextMenu.primaryColor) }, action: { c, _ in
                                     let _ = (context.engine.peers.updateChatListFiltersInteractively { filters in
                                         var filters = filters
                                         for i in 0 ..< filters.count {
@@ -222,12 +224,13 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                                             }), in: .current)
                                         })
                                     })
-                                })))
-                                hasRemoveFromFolder = true
+                                    })))
+                                    hasRemoveFromFolder = true
+                                }
                             }
                         }
                         
-                        if !hasRemoveFromFolder && peerGroup != nil {
+                        if !hasRemoveFromFolder && peerGroup != nil && whiteGramContextMenuSettings.isEnabled(.chatListFolder) {
                             var hasFolders = false
                             
                             for case let .filter(_, _, _, data) in filters {
@@ -346,16 +349,18 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                         }
                         
                         if isUnread {
+                            if whiteGramContextMenuSettings.isEnabled(.chatListMark) {
                             items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAsRead, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsRead"), color: theme.contextMenu.primaryColor) }, action: { _, f in
                                 let _ = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [peerId], setToValue: nil).startStandalone()
                                 f(.default)
                             })))
+                            }
                         } else if !isForum {
                             var canMarkAsUnread = true
                             if peerId.namespace == Namespaces.Peer.CloudChannel && joined {
                                 canMarkAsUnread = false
                             }
-                            if canMarkAsUnread {
+                            if canMarkAsUnread && whiteGramContextMenuSettings.isEnabled(.chatListMark) {
                                 items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_MarkAsUnread, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/MarkAsUnread"), color: theme.contextMenu.primaryColor) }, action: { _, f in
                                     let _ = context.engine.messages.togglePeersUnreadMarkInteractively(peerIds: [peerId], setToValue: nil).startStandalone()
                                     f(.default)
@@ -365,7 +370,7 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                         
                         let archiveEnabled = !isSavedMessages && peerId != PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value(777000)) && peerId == context.account.peerId
                         if let group = peerGroup {
-                            if archiveEnabled {
+                            if archiveEnabled && whiteGramContextMenuSettings.isEnabled(.chatListArchive) {
                                 let isArchived = group == .archive
                                 items.append(.action(ContextMenuActionItem(text: isArchived ? strings.ChatList_Context_Unarchive : strings.ChatList_Context_Archive, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: isArchived ? "Chat/Context Menu/Unarchive" : "Chat/Context Menu/Archive"), color: theme.contextMenu.primaryColor) }, action: { _, f in
                                     if isArchived {
@@ -387,7 +392,7 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                                 })))
                             }
                             
-                            if isPinned || chatListFilter == nil || peerId.namespace != Namespaces.Peer.SecretChat {
+                            if (isPinned || chatListFilter == nil || peerId.namespace != Namespaces.Peer.SecretChat) && whiteGramContextMenuSettings.isEnabled(.chatListPin) {
                                 items.append(.action(ContextMenuActionItem(text: isPinned ? strings.ChatList_Context_Unpin : strings.ChatList_Context_Pin, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: isPinned ? "Chat/Context Menu/Unpin" : "Chat/Context Menu/Pin"), color: theme.contextMenu.primaryColor) }, action: { c, f in
                                     let _ = (context.engine.peers.toggleItemPinned(location: location, itemId: .peer(peerId))
                                              |> deliverOnMainQueue).startStandalone(next: { result in
@@ -440,7 +445,7 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                                 })))
                             }
                             
-                            if !isSavedMessages {
+                            if !isSavedMessages && whiteGramContextMenuSettings.isEnabled(.chatListMute) {
                                 var isMuted = false
                                 if case let .muted(until) = notificationSettings.muteState, until >= Int32(CFAbsoluteTimeGetCurrent() + NSTimeIntervalSince1970) {
                                     isMuted = true
@@ -528,7 +533,7 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                             }
                         }
                         
-                        if case .chatList = source, peerGroup != nil {
+                        if case .chatList = source, peerGroup != nil, whiteGramContextMenuSettings.isEnabled(.chatListDelete) {
                             items.append(.action(ContextMenuActionItem(text: strings.ChatList_Context_Delete, textColor: .destructive, icon: { theme in generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.contextMenu.destructiveColor) }, action: { _, f in
                                 if let chatListController = chatListController {
                                     chatListController.deletePeerChat(peerId: peerId, joined: joined)
@@ -556,7 +561,7 @@ func chatContextMenuItems(context: AccountContext, peerId: PeerId, promoInfo: Ch
                                     }
                                 }
                                 
-                                if peerGroup != nil {
+                                if peerGroup != nil && whiteGramContextMenuSettings.isEnabled(.chatListDelete) {
                                     if !items.isEmpty {
                                         if !addedSeparator {
                                             items.append(.separator)

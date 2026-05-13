@@ -77,17 +77,19 @@ public struct ProxySettings: Codable, Equatable {
     public var activeServer: ProxyServerSettings?
     public var useForCalls: Bool
     public var autoConnectOnLaunch: Bool
+    public var automaticServers: [ProxyServerSettings]
     
     public static var defaultSettings: ProxySettings {
-        return ProxySettings(enabled: false, servers: [], activeServer: nil, useForCalls: false, autoConnectOnLaunch: false)
+        return ProxySettings(enabled: false, servers: [], activeServer: nil, useForCalls: false, autoConnectOnLaunch: false, automaticServers: [])
     }
     
-    public init(enabled: Bool, servers: [ProxyServerSettings], activeServer: ProxyServerSettings?, useForCalls: Bool, autoConnectOnLaunch: Bool = false) {
+    public init(enabled: Bool, servers: [ProxyServerSettings], activeServer: ProxyServerSettings?, useForCalls: Bool, autoConnectOnLaunch: Bool = false, automaticServers: [ProxyServerSettings] = []) {
         self.enabled = enabled
         self.servers = servers
         self.activeServer = activeServer
         self.useForCalls = useForCalls
         self.autoConnectOnLaunch = autoConnectOnLaunch
+        self.automaticServers = automaticServers
     }
     
     public init(from decoder: Decoder) throws {
@@ -98,6 +100,7 @@ public struct ProxySettings: Codable, Equatable {
         self.activeServer = try container.decodeIfPresent(ProxyServerSettings.self, forKey: "activeServer")
         self.useForCalls = ((try? container.decode(Int32.self, forKey: "useForCalls")) ?? 0) != 0
         self.autoConnectOnLaunch = ((try? container.decode(Int32.self, forKey: "autoConnectOnLaunch")) ?? 0) != 0
+        self.automaticServers = (try? container.decode([ProxyServerSettings].self, forKey: "automaticServers")) ?? []
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -108,6 +111,7 @@ public struct ProxySettings: Codable, Equatable {
         try container.encodeIfPresent(self.activeServer, forKey: "activeServer")
         try container.encode((self.useForCalls ? 1 : 0) as Int32, forKey: "useForCalls")
         try container.encode((self.autoConnectOnLaunch ? 1 : 0) as Int32, forKey: "autoConnectOnLaunch")
+        try container.encode(self.automaticServers, forKey: "automaticServers")
     }
     
     public var effectiveActiveServer: ProxyServerSettings? {

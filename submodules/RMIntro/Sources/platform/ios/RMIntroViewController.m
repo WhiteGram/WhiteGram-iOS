@@ -76,13 +76,36 @@ typedef enum {
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    
+
     if (_onLayout) {
         _onLayout();
     }
 }
 
 @end
+
+static NSString *RMIntroWhiteGramString(NSString *string) {
+    if (string == nil) {
+        return nil;
+    }
+
+    NSString *result = string;
+    result = [result stringByReplacingOccurrencesOfString:@"Telegram app" withString:@"WhiteGram app"];
+    result = [result stringByReplacingOccurrencesOfString:@"Telegram App" withString:@"WhiteGram App"];
+    result = [result stringByReplacingOccurrencesOfString:@"Telegram Premium" withString:@"WhiteGram Premium"];
+    result = [result stringByReplacingOccurrencesOfString:@"Telegram" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"Телеграме" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"Телеграма" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"Телеграму" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"Телеграмом" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"Телеграм" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"телеграме" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"телеграма" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"телеграму" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"телеграмом" withString:@"WhiteGram"];
+    result = [result stringByReplacingOccurrencesOfString:@"телеграм" withString:@"WhiteGram"];
+    return result;
+}
 
 @interface RMIntroViewController () <UIGestureRecognizerDelegate>
 {
@@ -150,7 +173,7 @@ typedef enum {
             if (bundle != nil) {
                 NSString *value = [bundle localizedStringForKey:key value:key table:nil];
                 if (value != nil) {
-                    englishStrings[key] = value;
+                    englishStrings[key] = RMIntroWhiteGramString(value);
                 } else {
                     englishStrings[key] = key;
                 }

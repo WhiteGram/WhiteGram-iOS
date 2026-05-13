@@ -34,6 +34,7 @@ public class ChatMessageShareButton: ASDisplayNode {
     private var isReplies: Bool = false
     private var hasMore: Bool = false
     private var isExpand: Bool = false
+    private var isTranslate: Bool = false
     
     private var textNode: ImmediateTextNode?
     
@@ -107,7 +108,7 @@ public class ChatMessageShareButton: ASDisplayNode {
         self.morePressed?()
     }
     
-    public func update(presentationData: ChatPresentationData, controllerInteraction: ChatControllerInteraction, chatLocation: ChatLocation, subject: ChatControllerSubject?, message: Message, account: Account, disableComments: Bool = false, isSummarize: Bool = false) -> CGSize {
+    public func update(presentationData: ChatPresentationData, controllerInteraction: ChatControllerInteraction, chatLocation: ChatLocation, subject: ChatControllerSubject?, message: Message, account: Account, disableComments: Bool = false, isSummarize: Bool = false, isTranslate: Bool = false) -> CGSize {
         var isReplies = false
         var isNavigate = false
         var replyCount = 0
@@ -132,6 +133,11 @@ public class ChatMessageShareButton: ASDisplayNode {
             replyCount = 0
             isReplies = false
         }
+        if isSummarize || isTranslate {
+            replyCount = 0
+            isReplies = false
+            isNavigate = false
+        }
         
         var hasMore = false
         if let adAttribute = message.adAttribute, adAttribute.canReport {
@@ -143,16 +149,19 @@ public class ChatMessageShareButton: ASDisplayNode {
             isExpand = true
         }
         
-        if self.theme !== presentationData.theme.theme || self.isReplies != isReplies || self.hasMore != hasMore || self.isExpand != isExpand {
+        if self.theme !== presentationData.theme.theme || self.isReplies != isReplies || self.hasMore != hasMore || self.isExpand != isExpand || self.isTranslate != isTranslate {
             self.theme = presentationData.theme.theme
             self.isReplies = isReplies
             self.hasMore = hasMore
             self.isExpand = isExpand
+            self.isTranslate = isTranslate
 
             var updatedIconImage: UIImage?
             var updatedBottomIconImage: UIImage?
             var updatedIconOffset = CGPoint()
-            if isSummarize {
+            if isTranslate {
+                updatedIconImage = generateScaledImage(image: generateTintedImage(image: UIImage(bundleImageName: "Chat/Title Panels/Translate"), color: bubbleVariableColor(variableColor: presentationData.theme.theme.chat.message.shareButtonForegroundColor, wallpaper: presentationData.theme.wallpaper)), size: CGSize(width: 18.0, height: 18.0), opaque: false)
+            } else if isSummarize {
                 if isExpand {
                     updatedIconImage = PresentationResourcesChat.chatFreeExpandButtonIcon(presentationData.theme.theme, wallpaper: presentationData.theme.wallpaper)
                 } else {

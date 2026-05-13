@@ -6534,6 +6534,7 @@ public final class ChatControllerImpl: TelegramBaseController, ChatController, G
             for messageId in messageIds {
                 strongSelf.chatDisplayNode.historyNode.requestMessageUpdate(messageId)
             }
+            strongSelf.chatDisplayNode.updateStickerSettings(strongSelf.stickerSettings, forceStopAnimations: strongSelf.disableStickerAnimationsValue)
             if let validLayout = strongSelf.validLayout {
                 strongSelf.containerLayoutUpdated(validLayout, transition: .immediate)
             }

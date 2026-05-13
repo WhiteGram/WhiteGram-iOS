@@ -92,6 +92,7 @@ open class TabBarControllerImpl: ViewController, TabBarController {
     }
 
     private let pendingControllerDisposable = MetaDisposable()
+    private var suppressTabSelectionUntil: Double = 0.0
 
     private var theme: PresentationTheme
     private var strings: PresentationStrings
@@ -179,12 +180,23 @@ open class TabBarControllerImpl: ViewController, TabBarController {
     override open func loadDisplayNode() {
         self.displayNode = TabBarControllerNode(presentationData: self.presentationData, whiteGramTabSettings: self.whiteGramTabSettings, itemSelected: { [weak self] index, longTap, itemNodes in
             if let strongSelf = self {
+                guard index >= 0 && index < strongSelf.controllers.count else {
+                    return
+                }
+                
+                let timestamp = CACurrentMediaTime()
+                if !longTap {
+                    if timestamp < strongSelf.suppressTabSelectionUntil {
+                        return
+                    }
+                    strongSelf.suppressTabSelectionUntil = timestamp + 0.35
+                }
+                
                 if longTap, let controller = strongSelf.controllers[index] as? TabBarContainedController {
                     controller.presentTabBarPreviewingController(sourceNodes: itemNodes)
                     return
                 }
 
-                let timestamp = CACurrentMediaTime()
                 if strongSelf.debugTapCounter.0 < timestamp - 0.4 {
                     strongSelf.debugTapCounter.0 = timestamp
                     strongSelf.debugTapCounter.1 = 0

@@ -22,6 +22,7 @@ import AuthenticationServices
 import Markdown
 import AlertUI
 import InAppPurchaseManager
+import AuthorizationUtils
 import ObjectiveC
 import AVFoundation
 import ComponentFlow
@@ -1538,13 +1539,13 @@ public final class AuthorizationSequenceController: NavigationController, ASAuth
         let formattedNumber = formatPhoneNumber(phoneNumber)
         
         var emailBody = ""
-        emailBody.append(presentationData.strings.Login_EmailCodeBody(formattedNumber).string)
+        emailBody.append(whiteGramAuthorizationString(presentationData.strings.Login_EmailCodeBody(formattedNumber).string))
         emailBody.append("\n\n")
         
         let appVersion = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "unknown"
         let systemVersion = UIDevice.current.systemVersion
         let locale = Locale.current.identifier
-        emailBody.append("Telegram: \(appVersion)\n")
+        emailBody.append("WhiteGram: \(appVersion)\n")
         emailBody.append("OS: \(systemVersion)\n")
         emailBody.append("Locale: \(locale)\n")
         emailBody.append("MNC: \(mnc)")

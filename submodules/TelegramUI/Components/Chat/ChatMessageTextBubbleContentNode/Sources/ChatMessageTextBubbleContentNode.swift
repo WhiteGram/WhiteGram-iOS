@@ -27,6 +27,21 @@ import TextLoadingEffect
 import ChatControllerInteraction
 import InteractiveTextComponent
 
+private func whiteGramNormalizedInterfaceLanguageCode(_ code: String) -> String {
+    var code = code
+    let rawSuffix = "-raw"
+    if code.hasSuffix(rawSuffix) {
+        code = String(code.dropLast(rawSuffix.count))
+    }
+    if code.contains("-") {
+        code = code.components(separatedBy: "-").first ?? code
+    }
+    if code == "nb" {
+        code = "no"
+    }
+    return code
+}
+
 private final class CachedChatMessageText {
     let text: String
     let inputEntities: [MessageTextEntity]?
@@ -447,7 +462,7 @@ public class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
                         messageEntities = updatingMedia.entities?.entities ?? []
                     }
                     
-                    let translateToLanguage = item.associatedData.translateToLanguage
+                    let translateToLanguage = item.associatedData.translateToLanguage ?? (item.controllerInteraction.expandedTranslationMessageStableIds.contains(item.message.stableId) ? whiteGramNormalizedInterfaceLanguageCode(item.presentationData.strings.baseLanguageCode) : nil)
                     var isSummarized = false
                     if item.controllerInteraction.summarizedMessageIds.contains(item.message.id) {
                         isSummarized = true

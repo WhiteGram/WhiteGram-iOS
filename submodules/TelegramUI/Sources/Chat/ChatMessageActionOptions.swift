@@ -5,6 +5,7 @@ import Display
 import SwiftSignalKit
 import Postbox
 import TelegramCore
+import TelegramUIPreferences
 import TelegramPresentationData
 import AccountContext
 import ChatPresentationInterfaceState
@@ -174,6 +175,10 @@ private func chatForwardOptions(selfController: ChatControllerImpl, sourceView: 
             canHideNames = false
         }
         if hasPaid {
+            canHideNames = false
+        }
+        let whiteGramContextMenuSettings = WhiteGramContextMenuSettings.current
+        if !whiteGramContextMenuSettings.isEnabled(.privateHideName) && !whiteGramContextMenuSettings.isEnabled(.channelHideName) {
             canHideNames = false
         }
         let hideNames = forwardOptions.hideNames

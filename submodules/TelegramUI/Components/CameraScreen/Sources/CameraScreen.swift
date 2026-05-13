@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import AVFoundation
 import Display
 import AsyncDisplayKit
 import ComponentFlow
@@ -9,6 +10,7 @@ import ComponentDisplayAdapters
 import TelegramPresentationData
 import AccountContext
 import TelegramCore
+import TelegramUIPreferences
 import PresentationDataUtils
 import Camera
 import MultilineTextComponent
@@ -33,6 +35,16 @@ import PlainButtonComponent
 import StoryContainerScreen
 
 let videoRedColor = UIColor(rgb: 0xff3b30)
+
+private func whiteGramSetBuiltInMicrophoneIfNeeded() {
+    guard WhiteGramOtherSettings.current.forceDeviceMicrophone else {
+        return
+    }
+    guard let input = AVAudioSession.sharedInstance().availableInputs?.first(where: { $0.portType == .builtInMic }) else {
+        return
+    }
+    try? AVAudioSession.sharedInstance().setPreferredInput(input)
+}
 let collageGrids: [Camera.CollageGrid] = [
     Camera.CollageGrid(rows: [Camera.CollageGrid.Row(columns: 1), Camera.CollageGrid.Row(columns: 1)]),
     Camera.CollageGrid(rows: [Camera.CollageGrid.Row(columns: 2)]),
@@ -4266,6 +4278,7 @@ public class CameraScreenImpl: ViewController, CameraScreen {
     
     private func requestAudioSession() {
         self.audioSessionDisposable = self.context.sharedContext.mediaManager.audioSession.push(audioSessionType: .record(speaker: false, video: true, withOthers: true), activate: { _ in
+            whiteGramSetBuiltInMicrophoneIfNeeded()
             if #available(iOS 13.0, *) {
                 try? AVAudioSession.sharedInstance().setAllowHapticsAndSystemSoundsDuringRecording(true)
             }

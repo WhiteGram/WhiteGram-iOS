@@ -2093,8 +2093,10 @@ public final class ChatHistoryListNodeImpl: ListViewImpl, ChatHistoryNode, ChatH
                 )
                 
                 var translateToLanguage: (fromLang: String, toLang: String)?
-                if let translationState, (isPremium || autoTranslate)  && translationState.isEnabled {
-                    var languageCode = translationState.toLang ?? chatPresentationData.strings.baseLanguageCode
+                let whiteGramOtherSettings = WhiteGramOtherSettings.current
+                let whiteGramTranslationEnabled = whiteGramOtherSettings.autoTranslate || whiteGramOtherSettings.translationButton
+                if let translationState, (isPremium || autoTranslate || whiteGramTranslationEnabled) && translationState.isEnabled {
+                    var languageCode = whiteGramOtherSettings.autoTranslate ? chatPresentationData.strings.baseLanguageCode : (translationState.toLang ?? chatPresentationData.strings.baseLanguageCode)
                     let rawSuffix = "-raw"
                     if languageCode.hasSuffix(rawSuffix) {
                         languageCode = String(languageCode.dropLast(rawSuffix.count))

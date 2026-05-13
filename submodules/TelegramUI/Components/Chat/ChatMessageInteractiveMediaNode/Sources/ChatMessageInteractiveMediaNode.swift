@@ -871,7 +871,7 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
         let hasCurrentAnimatedStickerNode = currentAnimatedStickerNode != nil
         let currentAutomaticDownload = self.automaticDownload
         let currentAutomaticPlayback = self.automaticPlayback
-        
+
         let hlsInlinePlaybackRange = self.hlsInlinePlaybackRange
         let appliedHlsInlinePlaybackRange = self.appliedHlsInlinePlaybackRange
         
@@ -1257,7 +1257,6 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
                     if let currentAutomaticPlayback = currentAutomaticPlayback {
                         automaticPlaybackUpdated = automaticPlayback != currentAutomaticPlayback
                     }
-                    
                     var statusUpdated = mediaUpdated
                     if currentMessage?.id != message.id || currentMessage?.flags != message.flags {
                         statusUpdated = true
@@ -1449,7 +1448,7 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
                                         if hasCurrentVideoNode {
                                             replaceVideoNode = false
                                         }
-                                        
+
                                         if file.isAnimatedSticker || file.isVideoSticker {
                                             updateAnimatedStickerFile = file
                                             if hasCurrentAnimatedStickerNode {
@@ -1633,7 +1632,7 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
                                 if hasCurrentVideoNode {
                                     replaceVideoNode = false
                                 }
-                                
+
                                 if file.isAnimatedSticker || file.isVideoSticker {
                                     updateAnimatedStickerFile = file
                                     if hasCurrentAnimatedStickerNode {
@@ -2094,8 +2093,11 @@ public final class ChatMessageInteractiveMediaNode: ASDisplayNode, GalleryItemTr
                             if let currentReplaceAnimatedStickerNode = replaceAnimatedStickerNode {
                                 replaceAnimatedStickerNode = nil
                                 if currentReplaceAnimatedStickerNode, let animatedStickerNode = strongSelf.animatedStickerNode {
+                                    animatedStickerNode.visibility = false
+                                    animatedStickerNode.stop()
                                     animatedStickerNode.removeFromSupernode()
                                     strongSelf.animatedStickerNode = nil
+                                    strongSelf.imageNode.isHidden = false
                                 }
                                 
                                 if currentReplaceAnimatedStickerNode, let updatedAnimatedStickerFile = updateAnimatedStickerFile {
