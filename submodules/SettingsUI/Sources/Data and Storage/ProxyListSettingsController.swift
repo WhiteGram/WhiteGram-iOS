@@ -470,7 +470,11 @@ private func proxySettingsControllerEntries(theme: PresentationTheme, strings: P
     entries.append(.serversHeader(theme, strings.SocksProxySetup_SavedProxies))
     entries.append(.addServer(theme, strings.SocksProxySetup_AddProxy, state.editing))
     var index = 0
+    var existingServers = Set<ProxyServerSettings>()
     for server in proxySettings.servers {
+        if !existingServers.insert(server).inserted {
+            continue
+        }
         var status: ProxyServerStatus = statuses[server] ?? .checking
         if !proxySettings.enabled, case .notAvailable = status {
             switch connectionStatus {
@@ -501,7 +505,7 @@ private func proxySettingsControllerEntries(theme: PresentationTheme, strings: P
         entries.append(.server(index, theme, strings, server, server == proxySettings.activeServer, displayStatus, ProxySettingsServerItemEditing(editable: true, editing: state.editing, revealed: state.revealedServer == server), proxySettings.enabled))
         index += 1
     }
-    if !proxySettings.servers.isEmpty {
+    if !existingServers.isEmpty {
         entries.append(.shareProxyList(theme, strings.SocksProxySetup_ShareProxyList))
     }
     return entries

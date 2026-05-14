@@ -1688,7 +1688,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                 }))
             }
         })
-        
+                
         return true
     }
     
